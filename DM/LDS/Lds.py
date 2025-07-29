@@ -16,31 +16,22 @@ from . import laneDet
 from . import carDist
 
 
-exit_flag = False
-
-
 
 # --------------------------------------------------------------------------------
 #
 # --------------------------------------------------------------------------------
 
-def Lds_setExit():
-    global exit_flag
-    exit_flag = True
+def Lds_Stop( source, queue ):
 
-
-# --------------------------------------------------------------------------------
-#
-# --------------------------------------------------------------------------------
-
-def Lds_Stop(source):
-    global exit_flag
     print('LDS END')
     if hasattr(source, "release"):
         source.release()
     cv2.destroyAllWindows()
 
-    exit_flag = False
+    # 추가
+
+    result_msg = "testData"
+    queue.put(result_msg)
 
 
 # --------------------------------------------------------------------------------
@@ -108,9 +99,6 @@ def Lds_Init( mode, path ):
 def Lds_Run( mode, path, hef, label, queue):
 
 
-    global exit_flag 
-
-
     # Init ( open video source )
     source = Lds_Init( mode, path )
 
@@ -134,7 +122,7 @@ def Lds_Run( mode, path, hef, label, queue):
 
         cv2.waitKey(0)  
 
-        Lds_Stop(source)
+        Lds_Stop(source, queue)
         return  
     
     else:
@@ -144,9 +132,6 @@ def Lds_Run( mode, path, hef, label, queue):
         while source.isOpened():
             
             ## 07.29 종료 
-            # if exit_flag:
-            #     Lds_Stop(source)
-            #     break
             if not queue.empty() :
                 msg = queue.get()
                 if msg == "EXIT":
@@ -214,10 +199,8 @@ def Lds_Run( mode, path, hef, label, queue):
 
             # Break loop(manual)
             if cv2.waitKey(1) & 0xFF == ord('q'):       #!! chk fps
-                Lds_Stop(source)
-                break 
+                Lds_Stop(source, queue)
+                return
             
         ## 07.29 결과 전송
-        cv2.destroyAllWindows()
-        result_msg = "testData"
-        queue.put(result_msg)
+        Lds_Stop(source, queue)

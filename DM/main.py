@@ -1,10 +1,14 @@
 from multiprocessing import Process, Queue
+import threading
 import time
 import asyncio
 import websockets
 
 from LDS import Lds
 from app import app
+from VDP.GPS import VDP_GPS
+from VDP.IMU import VDP_IMU
+import gData as g
 
 
 MODE = 1      # 0:jpg, 1:mp4, 2:usb cam
@@ -44,6 +48,14 @@ LDS_LABEL_PATH = "./LDS/labals.txt"
 
 URL = "ws://192.168.1.17:8888"
 
+
+# --------------------------------------------------------------------------------
+#  Thread run state
+# --------------------------------------------------------------------------------
+
+THREAD_RUN_ST = True
+
+
 # --------------------------------------------------------------------------------
 #  
 # --------------------------------------------------------------------------------
@@ -57,6 +69,32 @@ URL = "ws://192.168.1.17:8888"
 # elif MODE == 2:
 #     # Lds.Lds_Run( 2, LDS_CAM_CH, LDS_HEF_PATH, LDS_LABEL_PATH )
 #     app.app_Run( APP_CAM_CH, APP_HEF_PATH, APP_LABEL_PATH )
+
+
+# --------------------------------------------------------------------------------
+#  [Thread] get GPS data
+# --------------------------------------------------------------------------------
+
+def thread_GPS( gps ):
+    while THREAD_RUN_ST:
+        result = gps.run()
+        if result:
+            speed, dist = result
+            g.gps_speed_kph = speed
+            g.gps_total_dist = dist
+        time.sleep(0.1)
+
+
+# --------------------------------------------------------------------------------
+#  [Thread] get IMU data
+# --------------------------------------------------------------------------------
+
+def thread_IMU( imu ):
+    while THREAD_RUN_ST:
+        tSignal = imu.run()
+        if tSignal is not None:
+            g.IMU_tSignalSt = tSignal
+        time.sleep(0.1)
 
 
 # --------------------------------------------------------------------------------
@@ -86,9 +124,23 @@ async def connet_socket(URL) :
 # --------------------------------------------------------------------------------
 
 def main():
+
+    global THREAD_RUN_ST
+
+    # Create instance
+    gps = VDP_GPS()
+    imu = VDP_IMU()
+
     app_queue = Queue()
     lds_queue = Queue()
     
+    # VDP init
+    gps.init()
+    imu.init()
+
+
+
+
     ##연결 확인..? 
     while True:
 
@@ -106,10 +158,16 @@ def main():
             if user_input.strip() == '2':
                 exit(1)
             time.sleep(0.2)
-            
+
+        THREAD_RUN_ST = True
+        gps_thread = threading.Thread(target=thread_GPS, args=(gps,))
+        imu_thread = threading.Thread(target=thread_IMU, args=(imu,))  
+
         proc_APP = Process(target=app.app_Run, args=(APP_VIDEO_PATH, APP_HEF_PATH, APP_LABEL_PATH, app_queue))
         proc_LDS = Process(target=Lds.Lds_Run, args=(MODE, LDS_VIDEO_PATH, LDS_HEF_PATH, LDS_LABEL_PATH, lds_queue))
 
+        gps_thread.start()
+        imu_thread.start()
         proc_APP.start()
         proc_LDS.start()
 
@@ -121,6 +179,10 @@ def main():
                 lds_queue.put("EXIT")
                 proc_APP.join()
                 proc_LDS.join()
+
+                THREAD_RUN_ST = False
+                gps_thread.join()
+                imu_thread.join()
                 break
             time.sleep(0.2)
         
