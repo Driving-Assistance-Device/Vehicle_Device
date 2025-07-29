@@ -105,7 +105,7 @@ def Lds_Init( mode, path ):
 #  LDS Run
 # --------------------------------------------------------------------------------
 
-def Lds_Run( mode, path, hef, label ):
+def Lds_Run( mode, path, hef, label, queue):
 
 
     global exit_flag 
@@ -142,11 +142,17 @@ def Lds_Run( mode, path, hef, label ):
         prev_time = time.time()     # FPS test
 
         while source.isOpened():
-
-            if exit_flag:
-                Lds_Stop(source)
-                break
-
+            
+            ## 07.29 종료 
+            # if exit_flag:
+            #     Lds_Stop(source)
+            #     break
+            if not queue.empty() :
+                msg = queue.get()
+                if msg == "EXIT":
+                    print("[LDS] exit signal received")
+                    break
+                
             ret, frame = source.read()
 
             # Break loop(auto)
@@ -210,3 +216,8 @@ def Lds_Run( mode, path, hef, label ):
             if cv2.waitKey(1) & 0xFF == ord('q'):       #!! chk fps
                 Lds_Stop(source)
                 break 
+            
+        ## 07.29 결과 전송
+        cv2.destroyAllWindows()
+        result_msg = "testData"
+        queue.put(result_msg)

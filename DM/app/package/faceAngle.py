@@ -51,11 +51,11 @@ def get_head_direction(landmarks, face_width):
     # print(f"Face width: {face_width}, diff: {diff:.2f}, threshold: {threshold:.2f}")
     
     if diff > threshold:
-        return "Head turned LEFT"
+        return "LEFT"
     elif diff < -threshold:
-        return "Head turned RIGHT"
+        return "RIGHT"
     else:
-        return "Head facing CENTER"
+        return "FRONT"
 
 def process_frame_with_mediapipe(frame):
     """cap.read()로 얻은 frame을 넣으면 시선 방향 추정 결과를 반환합니다."""

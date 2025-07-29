@@ -1,5 +1,7 @@
-from multiprocessing import Process
+from multiprocessing import Process, Queue
 import time
+import asyncio
+import websockets
 
 from LDS import Lds
 from app import app
@@ -30,11 +32,17 @@ LDS_CAM_CH = 2
 
 LDS_IMAGE_PATH = "./LDS/videos/street2.jpg"
 # LDS_IMAGE_PATH = "./LDS/videos/highway.jpg"
-LDS_VIDEO_PATH = "./LDS/videos/testVideo_7.MP4"
+LDS_VIDEO_PATH = "./LDS/videos/1.mp4"
 
 LDS_HEF_PATH = "./LDS/yolov7.hef"
 LDS_LABEL_PATH = "./LDS/labals.txt"
 
+
+# --------------------------------------------------------------------------------
+#  socket
+# --------------------------------------------------------------------------------
+
+URL = "ws://192.168.1.17:8888"
 
 # --------------------------------------------------------------------------------
 #  
@@ -64,28 +72,43 @@ def check_stop_cmd():
 
     return False
 
+async def connet_socket(URL) :
+    try:
+        async with websockets.connect(URL):
+            print("Connected to server")
+            return True
+    except Exception as e:
+        print(f"Connection failed: {e}")
+        return False
 
 # --------------------------------------------------------------------------------
 #  
 # --------------------------------------------------------------------------------
 
 def main():
+    app_queue = Queue()
+    lds_queue = Queue()
     
     ##연결 확인..? 
     while True:
-        while not check_start_cmd():
-            time.sleep(1)
 
+        while True :
+            connected = connet_socket(URL)
+            if connected :
+                break
+    
         
         # start signal 수신
         while True :
-            user_input = input("Enter 1 to start ")
+            user_input = input("Enter 1 to start, 2 to exit")
             if user_input.strip() == '1':
                 break
+            if user_input.strip() == '2':
+                exit(1)
             time.sleep(0.2)
             
-        proc_APP = Process(target=app.app_Run, args=(APP_VIDEO_PATH, APP_HEF_PATH, APP_LABEL_PATH))
-        proc_LDS = Process(target=Lds.Lds_Run, args=(MODE, LDS_VIDEO_PATH, LDS_HEF_PATH, LDS_LABEL_PATH))
+        proc_APP = Process(target=app.app_Run, args=(APP_VIDEO_PATH, APP_HEF_PATH, APP_LABEL_PATH, app_queue))
+        proc_LDS = Process(target=Lds.Lds_Run, args=(MODE, LDS_VIDEO_PATH, LDS_HEF_PATH, LDS_LABEL_PATH, lds_queue))
 
         proc_APP.start()
         proc_LDS.start()
@@ -94,21 +117,30 @@ def main():
         while True:
             user_input = input("Enter 1 to end ")
             if user_input.strip() == '1':
+                app_queue.put("EXIT")
+                lds_queue.put("EXIT")
+                proc_APP.join()
+                proc_LDS.join()
                 break
             time.sleep(0.2)
-
-        # 종료 명령 실행
-        app.app_setExit()
-        Lds.Lds_setExit()
-
-        proc_APP.terminate()
-        proc_LDS.terminate()
-
-        proc_APP.join()
-        proc_LDS.join()
-
-        print("▶ 모든 프로세스가 종료되었습니다.")
-        break  # 한 번 종료 후 루프 탈출
+        
+        
+        # 시선 결과 수신
+        if not app_queue.empty():
+            msg = app_queue.get()
+            print("[APP]Received:", msg)
+  
+        else:
+            print("[APP]No msg received.")
+            
+        if not lds_queue.empty():
+            msg = lds_queue.get()
+            print("[LDS]Received:", msg)
+  
+        else:
+            print("[LDS]No msg received.")
+            
+                
 
 
 if __name__ == "__main__":
