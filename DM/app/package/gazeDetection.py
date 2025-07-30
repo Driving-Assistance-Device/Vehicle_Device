@@ -79,6 +79,7 @@ def detect_gaze(hef_path, frame, label_path = 'coco.txt'):
     #         break
     output_frame, detections = run(frame)
     #print('detection:', detections)
-    cv2.imshow('Gaze Detection', output_frame)
+    cv2.imshow("Gaze Detection", cv2.resize(output_frame, (0, 0), fx=0.3, fy=0.3))
+    #cv2.imshow('Gaze Detection', output_frame)
     
     return output_frame, detections

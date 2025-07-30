@@ -75,7 +75,7 @@ def app_Run(VIDEO_PATH, HEF_PATH, LABEL_PATH, queue):
             FRONT += 1
         elif direction == "RIGHT" :
             RIGHT += 1
-        print("LEFT:", LEFT, "FRONT:", FRONT, "RIGHT:", RIGHT)
+        # print("LEFT:", LEFT, "FRONT:", FRONT, "RIGHT:", RIGHT)
         
         #if direction :
             #print("Detected direction:", direction)

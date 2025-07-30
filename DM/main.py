@@ -2,8 +2,8 @@ from multiprocessing import Process, Queue, Manager
 import threading
 import time
 import asyncio
-import websockets
-
+# import websockets
+import RPi.GPIO as GPIO
 from LDS import Lds
 from app import app
 from VDP.GPS import VDP_GPS
@@ -12,8 +12,12 @@ import gData as g
 
 
 MODE = 1      # 0:jpg, 1:mp4, 2:usb cam
-
-
+RED_LED  = 23
+YELLOW_LED = 24
+BLUE_LED = 25
+BTN_0 = 17
+BTN_1 = 22
+BTN_2 = 27
 # --------------------------------------------------------------------------------
 #  APP
 # --------------------------------------------------------------------------------
@@ -21,7 +25,7 @@ MODE = 1      # 0:jpg, 1:mp4, 2:usb cam
 APP_CAM_CH = 0
 
 ## 테스트 버전이라 얼굴 나온 영상 뺌 ㅎㅎ
-APP_VIDEO_PATH = './app/videos/4.mp4'
+APP_VIDEO_PATH = './videos/4.mp4'
 
 ## 테스트 가중치 
 APP_HEF_PATH = './app/weight/test.hef'
@@ -36,7 +40,7 @@ LDS_CAM_CH = 2
 
 LDS_IMAGE_PATH = "./LDS/videos/street2.jpg"
 # LDS_IMAGE_PATH = "./LDS/videos/highway.jpg"
-LDS_VIDEO_PATH = "./LDS/videos/1.mp4"
+LDS_VIDEO_PATH = "./videos/2.mp4"
 
 LDS_HEF_PATH = "./LDS/yolov7.hef"
 LDS_LABEL_PATH = "./LDS/labals.txt"
@@ -120,14 +124,14 @@ def check_stop_cmd():
 
     return False
 
-async def connet_socket(URL) :
-    try:
-        async with websockets.connect(URL):
-            print("Connected to server")
-            return True
-    except Exception as e:
-        print(f"Connection failed: {e}")
-        return False
+# async def connet_socket(URL) :
+#     try:
+#         async with websockets.connect(URL):
+#             print("Connected to server")
+#             return True
+#     except Exception as e:
+#         print(f"Connection failed: {e}")
+#         return False
 
 # --------------------------------------------------------------------------------
 #  
@@ -157,20 +161,30 @@ def main():
     ##연결 확인..? 
     while True:
 
-        while True :
-            connected = connet_socket(URL)
-            if connected :
-                break
+        # while True :
+        #     connected = connet_socket(URL)
+        #     if connected :
+        #         break
     
         
         # start signal 수신
+        print("Press button 0 to start")
+        print("Press button 1 to off")
+
         while True :
-            user_input = input("Enter 1 to start, 2 to exit")
-            if user_input.strip() == '1':
+            if not GPIO.input(BTN_0):
                 break
-            if user_input.strip() == '2':
+            elif not GPIO.input(BTN_1):
+                # GPIO.cleanup()
                 exit(1)
-            time.sleep(0.2)
+            time.sleep(0.1)
+        time.sleep(0.5)
+            # user_input = input("Enter 1 to start, 2 to exit")
+            # if user_input.strip() == '1':
+            #     break
+            # if user_input.strip() == '2':
+            #     exit(1)
+            # time.sleep(0.2)
 
         THREAD_RUN_ST = True
         gps_thread = threading.Thread(target=thread_GPS, args=(gps, VDP_data))
@@ -183,11 +197,15 @@ def main():
         imu_thread.start()
         proc_APP.start()
         proc_LDS.start()
+        # 파란색 led on 
+        GPIO.output(BLUE_LED, GPIO.HIGH)
 
         # end signal 수신 
+        print("Press button 0 to stop")
         while True:
-            user_input = input("Enter 1 to end ")
-            if user_input.strip() == '1':
+            if not GPIO.input(BTN_0):
+            # user_input = input("Enter 1 to end ")
+            # if user_input.strip() == '1':
                 app_queue.put("EXIT")
                 lds_queue.put("EXIT")
                 proc_APP.join()
@@ -196,9 +214,11 @@ def main():
                 THREAD_RUN_ST = False
                 gps_thread.join()
                 imu_thread.join()
+                # 파란색 led off 
+                GPIO.output(BLUE_LED, GPIO.LOW)
                 break
-            time.sleep(0.2)
-        
+            time.sleep(0.1)
+        time.sleep(0.5)
         
         # 시선 결과 수신
         if not app_queue.empty():
@@ -219,5 +239,9 @@ def main():
 
 
 if __name__ == "__main__":
-
+    #gpio init
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(BLUE_LED, GPIO.OUT)
+    GPIO.setup(BTN_0, GPIO.IN)
+    GPIO.setup(BTN_1, GPIO.IN)
     main()

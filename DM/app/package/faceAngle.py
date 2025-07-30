@@ -48,7 +48,7 @@ def get_head_direction(landmarks, face_width):
     diff = nose_px - face_center
     threshold = face_width * 0.08
     
-    # print(f"Face width: {face_width}, diff: {diff:.2f}, threshold: {threshold:.2f}")
+    print(f"Face width: {face_width}, diff: {diff:.2f}, threshold: {threshold:.2f}")
     
     if diff > threshold:
         return "LEFT"
