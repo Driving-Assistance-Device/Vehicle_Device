@@ -87,7 +87,7 @@ class VDP_GPS:
 
     def init(self):
         self.GPS_Run = True
-        print("GPS parsing Init...")
+        print("GPS parsing Init")
 
 
     def stop(self):

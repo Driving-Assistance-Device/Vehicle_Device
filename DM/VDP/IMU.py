@@ -17,14 +17,14 @@ class VDP_IMU:
         self.last_time = 0.0
         self.mpu = None
 
-        self.left_threshold = -5.0
-        self.right_threshold = 25.0
+        self.left_threshold = -15.0
+        self.right_threshold = 15.0
 
         self.IMU_Run = False
 
 
     def init(self):
-        print("IMU parsing Init...")
+        print("IMU parsing Init")
 
         i2c = busio.I2C(board.SCL, board.SDA)
         self.mpu = MPU6050(i2c)

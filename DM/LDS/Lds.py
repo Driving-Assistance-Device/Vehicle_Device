@@ -14,6 +14,7 @@ import serial       # for uart
 import gData as g
 from . import laneDet
 from . import carDist
+from . import dataHandler
 
 
 
@@ -28,9 +29,9 @@ def Lds_Stop( source, queue ):
         source.release()
     cv2.destroyAllWindows()
 
-    # 추가
+    dataHandler.calc_RtnData()
 
-    result_msg = "testData"
+    result_msg = f"LANEOFFSET:{g.rtn_lOffset}, CARDIST:{g.rtn_cDist}, TOTALDIST:{g.rtn_tDist}"
     queue.put(result_msg)
 
 
@@ -96,7 +97,7 @@ def Lds_Init( mode, path ):
 #  LDS Run
 # --------------------------------------------------------------------------------
 
-def Lds_Run( mode, path, hef, label, queue):
+def Lds_Run( mode, path, hef, label, queue, VDP_data ):
 
 
     # Init ( open video source )
@@ -106,7 +107,7 @@ def Lds_Run( mode, path, hef, label, queue):
     carDist.init_hailo_inference( hef, label )
 
     # UART init
-    uart = serial.Serial('/dev/serial0', baudrate=115200)
+    uart = serial.Serial( '/dev/serial0', baudrate=115200 )
 
 
     if source is None:
@@ -115,14 +116,14 @@ def Lds_Run( mode, path, hef, label, queue):
     if mode == 0:
         frame = convFrameHD( source )
         detFrame, hLine = laneDet.ldRun( frame )
-        laneOffset = laneDet.ldOffset( detFrame ) 
-        output_frame = cv2.addWeighted(detFrame, 1, laneOffset, 0.5, 0)
+        ldOffsetFrame = laneDet.ldOffset( detFrame ) 
+        output_frame = cv2.addWeighted( detFrame, 1, ldOffsetFrame, 0.5, 0 )
 
         cv2.imshow("Final Output", output_frame)
 
         cv2.waitKey(0)  
 
-        Lds_Stop(source, queue)
+        Lds_Stop( source, queue )
         return  
     
     else:
@@ -159,7 +160,7 @@ def Lds_Run( mode, path, hef, label, queue):
 
             # Lane detect process
             detFrame, hLine = laneDet.ldRun( frame )
-            laneOffset = laneDet.ldOffset( detFrame )
+            ldOffsetFrame = laneDet.ldOffset( detFrame )
 
             # Get lane area
             laneArea = laneDet.getLaneArea( )
@@ -174,33 +175,29 @@ def Lds_Run( mode, path, hef, label, queue):
             # Estimate distance
             carDist.getCarDist( detectedFrame, detections, laneArea )
 
+            # HUD data handler
+            HUD_lane_offset, HUD_car_dist = dataHandler.runHandler( VDP_data )
 
-            # Single mode (LDS->HUD)
-            if g.car_dist == -1:
-                #print( f"Lane Offset: {g.lane_offset}" )
-                uart.write(f"$HUD,{g.lane_offset:.2f},-1.00\n".encode())
-            else:
-                #print(f"Lane Offset: {g.lane_offset}, dist : {g.car_dist:.2f} m")
-                uart.write(f"$HUD,{g.lane_offset:.2f},{g.car_dist:.2f}\n".encode())
+            # UART_0 (LDS->HUD)
+            # print(f"Lane Offset: {HUD_lane_offset}, dist : {HUD_car_dist:.2f} m")
+            uart.write(f"$HUD,{HUD_lane_offset},{HUD_car_dist}\n".encode())
             
-
             # Final frame
-            output_frame = cv2.addWeighted(detectedFrame, 1, laneOffset, 0.3, 0)
+            output_frame = cv2.addWeighted(detectedFrame, 1, ldOffsetFrame, 0.3, 0)
 
             # FPS test
             cur_time = time.time()
             fps = 1 / (cur_time - prev_time)
             prev_time = cur_time
             cv2.putText(output_frame, f"FPS: {fps:.2f}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            #
 
             # cv2.imshow("LaneDet Output", output_frame)
             cv2.imshow("Output Frame", cv2.resize(output_frame, (0, 0), fx=0.5, fy=0.5))
 
             # Break loop(manual)
-            if cv2.waitKey(1) & 0xFF == ord('q'):       #!! chk fps
-                Lds_Stop(source, queue)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                Lds_Stop( source, queue )
                 return
             
         ## 07.29 결과 전송
-        Lds_Stop(source, queue)
+        Lds_Stop( source, queue )

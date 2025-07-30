@@ -1,4 +1,4 @@
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Manager
 import threading
 import time
 import asyncio
@@ -72,16 +72,26 @@ THREAD_RUN_ST = True
 
 
 # --------------------------------------------------------------------------------
+#  Namespace data
+# --------------------------------------------------------------------------------
+
+def VDP_data_init( VDP_data ):
+    VDP_data.GPS_speed_kph = 0.0
+    VDP_data.GPS_total_dist = 0.0
+    VDP_data.IMU_tSignalSt = 0
+
+
+# --------------------------------------------------------------------------------
 #  [Thread] get GPS data
 # --------------------------------------------------------------------------------
 
-def thread_GPS( gps ):
+def thread_GPS( gps, VDP_data ):
     while THREAD_RUN_ST:
         result = gps.run()
         if result:
             speed, dist = result
-            g.gps_speed_kph = speed
-            g.gps_total_dist = dist
+            VDP_data.GPS_speed_kph = speed
+            VDP_data.GPS_total_dist = dist
         time.sleep(0.1)
 
 
@@ -89,11 +99,11 @@ def thread_GPS( gps ):
 #  [Thread] get IMU data
 # --------------------------------------------------------------------------------
 
-def thread_IMU( imu ):
+def thread_IMU( imu, VDP_data ):
     while THREAD_RUN_ST:
         tSignal = imu.run()
         if tSignal is not None:
-            g.IMU_tSignalSt = tSignal
+            VDP_data.IMU_tSignalSt = tSignal
         time.sleep(0.1)
 
 
@@ -128,6 +138,8 @@ def main():
     global THREAD_RUN_ST
 
     # Create instance
+    manager = Manager()
+    VDP_data = manager.Namespace()
     gps = VDP_GPS()
     imu = VDP_IMU()
 
@@ -135,6 +147,7 @@ def main():
     lds_queue = Queue()
     
     # VDP init
+    VDP_data_init(VDP_data)
     gps.init()
     imu.init()
 
@@ -160,11 +173,11 @@ def main():
             time.sleep(0.2)
 
         THREAD_RUN_ST = True
-        gps_thread = threading.Thread(target=thread_GPS, args=(gps,))
-        imu_thread = threading.Thread(target=thread_IMU, args=(imu,))  
+        gps_thread = threading.Thread(target=thread_GPS, args=(gps, VDP_data))
+        imu_thread = threading.Thread(target=thread_IMU, args=(imu, VDP_data))  
 
         proc_APP = Process(target=app.app_Run, args=(APP_VIDEO_PATH, APP_HEF_PATH, APP_LABEL_PATH, app_queue))
-        proc_LDS = Process(target=Lds.Lds_Run, args=(MODE, LDS_VIDEO_PATH, LDS_HEF_PATH, LDS_LABEL_PATH, lds_queue))
+        proc_LDS = Process(target=Lds.Lds_Run, args=(MODE, LDS_VIDEO_PATH, LDS_HEF_PATH, LDS_LABEL_PATH, lds_queue, VDP_data))
 
         gps_thread.start()
         imu_thread.start()
