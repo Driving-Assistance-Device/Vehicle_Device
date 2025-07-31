@@ -79,19 +79,30 @@ def app_Run(VIDEO_PATH, HEF_PATH, LABEL_PATH, queue):
         
         #if direction :
             #print("Detected direction:", direction)
+        # 시선
         out_frame, detection = gaze.detect_gaze(HEF_PATH, frame, LABEL_PATH)
-           
+        gaze_dir = gaze.analyze_gaze_direction(detection) 
+        #print(f"Gaze Direction: {gaze_dir}")
         # 시선
         gaze.getData(out_frame,detection)  
         
-        
+        cv2.imshow("Gaze Detection", cv2.resize(out_frame, (0, 0), fx=0.3, fy=0.3))
+        # cv2.imshow("Gaze Detection", out_frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-        time.sleep(0.05)
+        # time.sleep(0.05)
     
     ## 07.29 결과 전송
     cv2.destroyAllWindows()
-    result_msg = f"LEFT:{LEFT}, FRONT:{FRONT}, RIGHT:{RIGHT}"
+    # result_msg = f"LEFT:{LEFT}, FRONT:{FRONT}, RIGHT:{RIGHT}"
+    result_msg = {
+        "type": "DRIVING:EYES",
+        "payload": {
+            "left": LEFT,
+            "front": FRONT,
+            "right": RIGHT
+        }
+    }
     queue.put(result_msg)
 
 

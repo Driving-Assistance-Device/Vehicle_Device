@@ -2,10 +2,13 @@ from multiprocessing import Process, Queue, Manager
 import threading
 import time
 import asyncio
-# import websockets
-import RPi.GPIO as GPIO
+import websockets
+import ssl
+import json
+
 from LDS import Lds
 from app import app
+from VDP import GPIO
 from VDP.GPS import VDP_GPS
 from VDP.IMU import VDP_IMU
 import gData as g
@@ -28,7 +31,7 @@ APP_CAM_CH = 0
 APP_VIDEO_PATH = './videos/4.mp4'
 
 ## 테스트 가중치 
-APP_HEF_PATH = './app/weight/test.hef'
+APP_HEF_PATH = './app/weight/gaze.hef'
 APP_LABEL_PATH = './app/weight/coco.txt'
 
 
@@ -50,29 +53,14 @@ LDS_LABEL_PATH = "./LDS/labals.txt"
 #  socket
 # --------------------------------------------------------------------------------
 
-URL = "ws://192.168.1.17:8888"
-
-
+## 07.31 url 주소 니오면 안될 것 같아서 일단 지움
+URL = "url"
+ssl_context = ssl._create_unverified_context()
 # --------------------------------------------------------------------------------
 #  Thread run state
 # --------------------------------------------------------------------------------
 
 THREAD_RUN_ST = True
-
-
-# --------------------------------------------------------------------------------
-#  
-# --------------------------------------------------------------------------------
-
-# if MODE == 0:
-#     Lds.Lds_Run( 0, LDS_IMAGE_PATH, LDS_HEF_PATH, LDS_LABEL_PATH )
-
-# elif MODE == 1:
-#     Lds.Lds_Run( 1, LDS_VIDEO_PATH, LDS_HEF_PATH, LDS_LABEL_PATH )
-
-# elif MODE == 2:
-#     # Lds.Lds_Run( 2, LDS_CAM_CH, LDS_HEF_PATH, LDS_LABEL_PATH )
-#     app.app_Run( APP_CAM_CH, APP_HEF_PATH, APP_LABEL_PATH )
 
 
 # --------------------------------------------------------------------------------
@@ -96,6 +84,7 @@ def thread_GPS( gps, VDP_data ):
             speed, dist = result
             VDP_data.GPS_speed_kph = speed
             VDP_data.GPS_total_dist = dist
+        #print(f"speed: {speed:.1f}, distance: {dist:.1f}")
         time.sleep(0.1)
 
 
@@ -108,6 +97,7 @@ def thread_IMU( imu, VDP_data ):
         tSignal = imu.run()
         if tSignal is not None:
             VDP_data.IMU_tSignalSt = tSignal
+        # print(tSignal)
         time.sleep(0.1)
 
 
@@ -115,29 +105,39 @@ def thread_IMU( imu, VDP_data ):
 #  백엔드 시작/종료 신호 확인 함수
 # --------------------------------------------------------------------------------
 
-def check_start_cmd():
+async def connect_until_success(uri):
+    ssl_context = ssl._create_unverified_context()
 
-    return True
+    while True:
+        try:
+            print("[INFO] Trying to connect to WebSocket...")
+            websocket = await websockets.connect(uri, ssl=ssl_context)
+            print("[SUCCESS] Connected to WebSocket server.")
+           # await websocket.close()
+            return websocket
+        except Exception as e:
+            print("[RETRY] Connection failed:", e)
+            await asyncio.sleep(2)  # 2초 후 재시도
+   
 
+async def send_msg(websocket, msg):
+    try:
+        await websocket.send(json.dumps(msg))
+        print("[INFO] Message sent:", msg)
 
-def check_stop_cmd():
-
-    return False
-
-# async def connet_socket(URL) :
-#     try:
-#         async with websockets.connect(URL):
-#             print("Connected to server")
-#             return True
-#     except Exception as e:
-#         print(f"Connection failed: {e}")
-#         return False
+        response = await websocket.recv()
+        print("[WS] Response received:", response)
+    except Exception as e:
+        print("[ERROR] Communication failed:", e)
+    # finally:
+    #     await websocket.close()
+    #     print("[INFO] WebSocket connection closed.")
 
 # --------------------------------------------------------------------------------
 #  
 # --------------------------------------------------------------------------------
 
-def main():
+async def main():
 
     global THREAD_RUN_ST
 
@@ -145,65 +145,51 @@ def main():
     manager = Manager()
     VDP_data = manager.Namespace()
     gps = VDP_GPS()
-    imu = VDP_IMU()
-
+    # imu = VDP_IMU()
+    
     app_queue = Queue()
     lds_queue = Queue()
     
     # VDP init
     VDP_data_init(VDP_data)
     gps.init()
-    imu.init()
+    # imu.init()
 
-
-
+    websocket = await connect_until_success(URL)
 
     ##연결 확인..? 
     while True:
-
-        # while True :
-        #     connected = connet_socket(URL)
-        #     if connected :
-        #         break
-    
         
         # start signal 수신
         print("Press button 0 to start")
         print("Press button 1 to off")
 
         while True :
-            if not GPIO.input(BTN_0):
+            if not GPIO.read_button(BTN_0):
                 break
-            elif not GPIO.input(BTN_1):
-                # GPIO.cleanup()
+            elif not GPIO.read_button(BTN_1):
                 exit(1)
             time.sleep(0.1)
         time.sleep(0.5)
-            # user_input = input("Enter 1 to start, 2 to exit")
-            # if user_input.strip() == '1':
-            #     break
-            # if user_input.strip() == '2':
-            #     exit(1)
-            # time.sleep(0.2)
 
         THREAD_RUN_ST = True
         gps_thread = threading.Thread(target=thread_GPS, args=(gps, VDP_data))
-        imu_thread = threading.Thread(target=thread_IMU, args=(imu, VDP_data))  
+        # imu_thread = threading.Thread(target=thread_IMU, args=(imu, VDP_data))  
 
         proc_APP = Process(target=app.app_Run, args=(APP_VIDEO_PATH, APP_HEF_PATH, APP_LABEL_PATH, app_queue))
         proc_LDS = Process(target=Lds.Lds_Run, args=(MODE, LDS_VIDEO_PATH, LDS_HEF_PATH, LDS_LABEL_PATH, lds_queue, VDP_data))
 
         gps_thread.start()
-        imu_thread.start()
+        # imu_thread.start()
         proc_APP.start()
         proc_LDS.start()
         # 파란색 led on 
-        GPIO.output(BLUE_LED, GPIO.HIGH)
+        GPIO.toggle_LED(BLUE_LED, 1)
 
         # end signal 수신 
         print("Press button 0 to stop")
         while True:
-            if not GPIO.input(BTN_0):
+            if not GPIO.read_button(BTN_0):
             # user_input = input("Enter 1 to end ")
             # if user_input.strip() == '1':
                 app_queue.put("EXIT")
@@ -213,35 +199,32 @@ def main():
 
                 THREAD_RUN_ST = False
                 gps_thread.join()
-                imu_thread.join()
+                # imu_thread.join()
                 # 파란색 led off 
-                GPIO.output(BLUE_LED, GPIO.LOW)
+                GPIO.toggle_LED(BLUE_LED, 0)
                 break
             time.sleep(0.1)
         time.sleep(0.5)
         
         # 시선 결과 수신
         if not app_queue.empty():
-            msg = app_queue.get()
-            print("[APP]Received:", msg)
+            msg_app = app_queue.get()
+            print("[APP]Received:", msg_app)
+            await send_msg(websocket, msg_app)
   
         else:
             print("[APP]No msg received.")
             
         if not lds_queue.empty():
-            msg = lds_queue.get()
-            print("[LDS]Received:", msg)
-  
+            msg_lds = lds_queue.get()
+            print("[LDS]Received:", msg_lds)
+            await send_msg(websocket, msg_lds)
         else:
             print("[LDS]No msg received.")
             
-                
-
 
 if __name__ == "__main__":
     #gpio init
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(BLUE_LED, GPIO.OUT)
-    GPIO.setup(BTN_0, GPIO.IN)
-    GPIO.setup(BTN_1, GPIO.IN)
-    main()
+    GPIO.init_GPIO()
+    asyncio.run(main()) 
+    GPIO.exit_GPIO()

@@ -79,7 +79,56 @@ def detect_gaze(hef_path, frame, label_path = 'coco.txt'):
     #         break
     output_frame, detections = run(frame)
     #print('detection:', detections)
-    cv2.imshow("Gaze Detection", cv2.resize(output_frame, (0, 0), fx=0.3, fy=0.3))
+    #cv2.imshow("Gaze Detection", cv2.resize(output_frame, (0, 0), fx=0.3, fy=0.3))
     #cv2.imshow('Gaze Detection', output_frame)
     
     return output_frame, detections
+
+# 07.31 추가 
+def analyze_gaze_direction(detections: dict) -> str:
+    """
+    Analyze gaze direction based on eye and pupil detection results.
+
+    Args:
+        detections (dict): Output from extract_detections(), containing:
+            - 'detection_boxes': List of [x1, y1, x2, y2] (normalized bbox coordinates)
+            - 'detection_classes': List of class indices (e.g., 0 for eye, 1 for pupil)
+            - 'detection_scores': List of confidence scores
+            - 'num_detections': Number of total detections
+
+    Returns:
+        str: 'left', 'front', 'right', or 'unknown'
+    """
+    eye_box = None
+    pupil_box = None
+
+    for box, cls in zip(detections['detection_boxes'], detections['detection_classes']):
+        if cls == 0:  # assuming 0 is 'eye'
+            eye_box = box
+        elif cls == 1:  # assuming 1 is 'pupil'
+            pupil_box = box
+
+    if eye_box is None or pupil_box is None:
+        return 'unknown'
+
+    # Extract center X position of pupil and eye
+    eye_x1, _, eye_x2, _ = eye_box
+    pupil_x1, _, pupil_x2, _ = pupil_box
+
+    eye_center_x = (eye_x1 + eye_x2) / 2
+    pupil_center_x = (pupil_x1 + pupil_x2) / 2
+
+    # Calculate relative position of pupil inside eye
+    eye_width = eye_x2 - eye_x1
+    relative_x = (pupil_center_x - eye_x1) / eye_width  # 0 to 1
+    # 07. 31 테스트 필요
+    #print(relative_x)
+    if not (0 <= relative_x <= 1):
+        return 'unknown'  # Pupil is not inside eye
+
+    if relative_x < 0.22:
+        return 'left'
+    elif relative_x > 0.77:
+        return 'right'
+    else:
+        return 'front'

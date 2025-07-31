@@ -30,8 +30,16 @@ def Lds_Stop( source, queue ):
     cv2.destroyAllWindows()
 
     dataHandler.calc_RtnData()
-
-    result_msg = f"LANEOFFSET:{g.rtn_lOffset}, CARDIST:{g.rtn_cDist}, TOTALDIST:{g.rtn_tDist}"
+    
+    result_msg = {
+        "type": "DRIVING:MILEAGE",
+        "payload": {
+            "laneOffset": g.rtn_lOffset,
+            "carDist": g.rtn_cDist,
+            "mileage": g.rtn_tDist
+        }
+    }
+    
     queue.put(result_msg)
 
 
