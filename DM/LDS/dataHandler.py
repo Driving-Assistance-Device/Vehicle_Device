@@ -95,14 +95,15 @@ def runHandler( VDP_data ):
             2 : 경고
     '''
     # Lane offset
-    if VDP_data.IMU_tSignalSt == -1:
-        HUD_lane_offset = -999
-    elif VDP_data.IMU_tSignalSt == 1:
-        HUD_lane_offset = 999
-    # elif VDP_data.GPS_speed_kph <= 10.0:  # ignore offset
+    HUD_lane_offset = g.lane_offset     # test
+
+    # if VDP_data.GPS_speed_kph <= 10.0:  # ignore offset
     #     HUD_lane_offset = 0
-    else:
-        HUD_lane_offset = g.lane_offset
+    # else:
+    #     HUD_lane_offset = g.lane_offset
+
+    # Turn signal state
+    HUD_tSig_st = VDP_data.IMU_tSignalSt
 
     # Distance alarm
     if 0 < g.car_dist <= THRESHOLD_DIST_DANG:     # 속도 비례로 수정
@@ -114,4 +115,4 @@ def runHandler( VDP_data ):
 
     countData( HUD_lane_offset, HUD_car_dist )
 
-    return HUD_lane_offset, HUD_car_dist
+    return HUD_lane_offset, HUD_tSig_st, HUD_car_dist

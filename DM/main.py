@@ -14,7 +14,7 @@ from VDP.IMU import VDP_IMU
 import gData as g
 
 
-MODE = 1      # 0:jpg, 1:mp4, 2:usb cam
+MODE = 2      # 0:jpg, 1:mp4, 2:usb cam
 RED_LED  = 23
 YELLOW_LED = 24
 BLUE_LED = 25
@@ -25,7 +25,7 @@ BTN_2 = 27
 #  APP
 # --------------------------------------------------------------------------------
 
-APP_CAM_CH = 0
+APP_CAM_CH = 2
 
 ## 테스트 버전이라 얼굴 나온 영상 뺌 ㅎㅎ
 APP_VIDEO_PATH = './videos/4.mp4'
@@ -39,7 +39,7 @@ APP_LABEL_PATH = './app/weight/coco.txt'
 #  LDS
 # --------------------------------------------------------------------------------
 
-LDS_CAM_CH = 2
+LDS_CAM_CH = 0
 
 LDS_IMAGE_PATH = "./LDS/videos/street2.jpg"
 # LDS_IMAGE_PATH = "./LDS/videos/highway.jpg"
@@ -54,7 +54,7 @@ LDS_LABEL_PATH = "./LDS/labals.txt"
 # --------------------------------------------------------------------------------
 
 ## 07.31 url 주소 니오면 안될 것 같아서 일단 지움
-URL = "url"
+URL = "wss://api.driving.p-e.kr/ws"
 ssl_context = ssl._create_unverified_context()
 # --------------------------------------------------------------------------------
 #  Thread run state
@@ -97,8 +97,8 @@ def thread_IMU( imu, VDP_data ):
         tSignal = imu.run()
         if tSignal is not None:
             VDP_data.IMU_tSignalSt = tSignal
-        # print(tSignal)
-        time.sleep(0.1)
+        print(tSignal)
+        time.sleep(0.05)
 
 
 # --------------------------------------------------------------------------------
@@ -145,7 +145,7 @@ async def main():
     manager = Manager()
     VDP_data = manager.Namespace()
     gps = VDP_GPS()
-    # imu = VDP_IMU()
+    imu = VDP_IMU()
     
     app_queue = Queue()
     lds_queue = Queue()
@@ -153,7 +153,7 @@ async def main():
     # VDP init
     VDP_data_init(VDP_data)
     gps.init()
-    # imu.init()
+    imu.init()
 
     websocket = await connect_until_success(URL)
 
@@ -174,13 +174,13 @@ async def main():
 
         THREAD_RUN_ST = True
         gps_thread = threading.Thread(target=thread_GPS, args=(gps, VDP_data))
-        # imu_thread = threading.Thread(target=thread_IMU, args=(imu, VDP_data))  
+        imu_thread = threading.Thread(target=thread_IMU, args=(imu, VDP_data))  
 
         proc_APP = Process(target=app.app_Run, args=(APP_VIDEO_PATH, APP_HEF_PATH, APP_LABEL_PATH, app_queue))
-        proc_LDS = Process(target=Lds.Lds_Run, args=(MODE, LDS_VIDEO_PATH, LDS_HEF_PATH, LDS_LABEL_PATH, lds_queue, VDP_data))
+        proc_LDS = Process(target=Lds.Lds_Run, args=(MODE, LDS_CAM_CH, LDS_HEF_PATH, LDS_LABEL_PATH, lds_queue, VDP_data))
 
         gps_thread.start()
-        # imu_thread.start()
+        imu_thread.start()
         proc_APP.start()
         proc_LDS.start()
         # 파란색 led on 
@@ -199,7 +199,7 @@ async def main():
 
                 THREAD_RUN_ST = False
                 gps_thread.join()
-                # imu_thread.join()
+                imu_thread.join()
                 # 파란색 led off 
                 GPIO.toggle_LED(BLUE_LED, 0)
                 break

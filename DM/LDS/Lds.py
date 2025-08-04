@@ -163,11 +163,11 @@ def Lds_Run( mode, path, hef, label, queue, VDP_data ):
                 frame = convFrameHD( frame ) 
 
             # 180 flip
-            # rotated_frame = cv2.rotate(frame, cv2.ROTATE_180)
-            # detFrame, hLine = laneDet.ldRun( rotated_frame )
+            rotated_frame = cv2.rotate(frame, cv2.ROTATE_180)
+            detFrame, hLine = laneDet.ldRun( rotated_frame )
 
             # Lane detect process
-            detFrame, hLine = laneDet.ldRun( frame )
+            # detFrame, hLine = laneDet.ldRun( frame )
             ldOffsetFrame = laneDet.ldOffset( detFrame )
 
             # Get lane area
@@ -184,11 +184,11 @@ def Lds_Run( mode, path, hef, label, queue, VDP_data ):
             carDist.getCarDist( detectedFrame, detections, laneArea )
 
             # HUD data handler
-            HUD_lane_offset, HUD_car_dist = dataHandler.runHandler( VDP_data )
+            HUD_lane_offset, HUD_tSig_st, HUD_car_dist = dataHandler.runHandler( VDP_data )
 
             # UART_0 (LDS->HUD)
             # print(f"Lane Offset: {HUD_lane_offset}, dist : {HUD_car_dist:.2f} m")
-            uart.write(f"$HUD,{HUD_lane_offset},{HUD_car_dist}\n".encode())
+            uart.write(f"$HUD,{HUD_lane_offset},{HUD_tSig_st},{HUD_car_dist}\n".encode())
             
             # Final frame
             output_frame = cv2.addWeighted(detectedFrame, 1, ldOffsetFrame, 0.3, 0)

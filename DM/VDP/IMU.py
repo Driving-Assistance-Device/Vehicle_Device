@@ -13,14 +13,18 @@ from adafruit_mpu6050 import MPU6050
 class VDP_IMU:
 
     def __init__(self):
-        self.angleX = 0.0
-        self.last_time = 0.0
+        # self.angleX = 0.0
+        # self.last_time = 0.0
         self.mpu = None
-
-        self.left_threshold = -15.0
-        self.right_threshold = 15.0
-
         self.IMU_Run = False
+
+        # self.left_threshold = -15.0
+        # self.right_threshold = 15.0
+
+        self.state = 0
+        self.state_start_time = None
+
+
 
 
     def init(self):
@@ -29,14 +33,15 @@ class VDP_IMU:
         i2c = busio.I2C(board.SCL, board.SDA)
         self.mpu = MPU6050(i2c)
 
-        self.angleX = 0.0
-        self.last_time = time.time()
         self.IMU_Run = True
+        self.state = 0
+        self.state_start_time = None 
 
 
     def stop(self):
         print("IMU parsing stop.")
         self.IMU_Run = False
+
 
 
     def getState(self):
@@ -47,22 +52,36 @@ class VDP_IMU:
             a = self.mpu.acceleration
             g = self.mpu.gyro
 
-            now = time.time()
-            dt = now - self.last_time
-            self.last_time = now
 
-            accel_angle_x = math.atan2(-a[1], math.sqrt(a[0]**2 + a[2]**2)) * 180 / math.pi
+            LEFT_THRESHOLD = -14.0
+            RIGHT_THRESHOLD = -31.0
+            MARGIN = 5.0
+            HOLD_TIME = 0.3
 
-            self.angleX = 0.98 * (self.angleX + g[0] * dt) + 0.02 * accel_angle_x 
+            LEFT_MARGIN = LEFT_THRESHOLD + MARGIN
+            RIGHT_MARGIN = RIGHT_THRESHOLD - MARGIN           
 
-            # print(f"angleX :{self.angleX}")      #test
 
-            if self.angleX < self.left_threshold:
-                return -1
-            elif self.angleX > self.right_threshold:
-                return 1
+            # now = time.time()
+            # dt = now - self.last_time
+            # self.last_time = now
+
+
+            print(f"a0:{a[0]:.2f}, a1:{a[1]:.2f}, a2:{a[2]:.2f} | g0:{g[0]:.2f}, g1:{g[1]:.2f}, g2:{g[2]:.2f}")
+
+
+            roll = math.atan2(a[1], a[2]) * 180 / math.pi  # 좌우 기울기
+            print(f"roll: {roll:.2f}")                  # 디버그용
+
+            # roll 기준으로 상태 판단 --------------- [수정]
+            if LEFT_MARGIN > roll > LEFT_THRESHOLD:
+                return -1   # LEFT
+            elif RIGHT_MARGIN < roll < RIGHT_THRESHOLD:
+                return 1    # RIGHT
             else:
-                return 0
+                return 0    # CENTER
+
+
 
         except Exception as e:
             print(f"[IMU] Error: {e}")
