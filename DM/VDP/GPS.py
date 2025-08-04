@@ -33,6 +33,14 @@ class VDP_GPS:
         return R * c
 
 
+    def initData(self):
+        self.speed_kph = 0.0        # Speed (km/h)
+        self.total_dist = 0.0       # Total distance
+        self.prev_lat = None        # Prev latitude
+        self.prev_lon = None        # Prev longitude
+        self.delta_dist = 0.0       # Distance variation        
+
+
     def run(self):
         
         if not self.GPS_Run:

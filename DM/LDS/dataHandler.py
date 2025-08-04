@@ -12,6 +12,23 @@ THRESHOLD_DIST_DANG = 3    # Danger     # 속도 비례로 수정
 
 
 # --------------------------------------------------------------------------------
+#  
+# --------------------------------------------------------------------------------
+
+def initHandler():
+    g.lane_offset = 0
+    g.car_dist = 0
+    g.raw_count_loop = 0
+    g.raw_avg_lOffset = 0
+    g.raw_sum_cDist_0 = 0
+    g.raw_sum_cDist_1 = 0
+    g.raw_sum_cDist_2 = 0
+    g.rtn_lOffset = 0
+    g.rtn_cDist = 0
+    g.rtn_tMilg = 0
+
+
+# --------------------------------------------------------------------------------
 #  Distribution Calculation
 # --------------------------------------------------------------------------------
 
@@ -35,6 +52,7 @@ def calc_RtnData():
     if g.raw_count_loop < 10:
         g.rtn_lOffset = 0
         g.rtn_cDist = 0
+        g.rtn_tMilg = 0
         return
 
 
@@ -112,6 +130,9 @@ def runHandler( VDP_data ):
         HUD_car_dist = 1
     else:
         HUD_car_dist = 0
+
+    # cur mileage
+    g.rtn_tMilg = VDP_data.GPS_total_milg
 
     countData( HUD_lane_offset, HUD_car_dist )
 

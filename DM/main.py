@@ -17,9 +17,11 @@ import gData as g
 MODE = 1      # 0:jpg, 1:mp4, 2:usb cam
 
 DEVICE_STATE = False 
+
 # --------------------------------------------------------------------------------
 #  APP
 # --------------------------------------------------------------------------------
+
 APP_CAM_CH = 2
 
 ## 테스트 버전이라 얼굴 나온 영상 뺌 ㅎㅎ
@@ -31,6 +33,7 @@ APP_LABEL_PATH = './app/weight/coco.txt'
 # --------------------------------------------------------------------------------
 #  LDS
 # --------------------------------------------------------------------------------
+
 LDS_CAM_CH = 0
 
 LDS_VIDEO_PATH = "./videos/2.mp4"
@@ -41,6 +44,7 @@ LDS_LABEL_PATH = "./LDS/labals.txt"
 # --------------------------------------------------------------------------------
 #  socket
 # --------------------------------------------------------------------------------
+
 async def send_result(websocket, msg_app, msg_lds) :
     app_flag = True
     Lds_flag = True
@@ -69,6 +73,7 @@ async def send_result(websocket, msg_app, msg_lds) :
 ## 07.31 url 주소 니오면 안될 것 같아서 일단 지움
 URL = "wss://api.driving.p-e.kr/ws"
 ssl_context = ssl._create_unverified_context()
+
 # --------------------------------------------------------------------------------
 #  Thread run state
 # --------------------------------------------------------------------------------
@@ -79,17 +84,43 @@ THREAD_RUN_ST = True
 # --------------------------------------------------------------------------------
 #  Namespace data
 # --------------------------------------------------------------------------------
+
 def VDP_data_init( VDP_data ):
     VDP_data.GPS_speed_kph = 0.0
-    VDP_data.GPS_total_dist = 0.0
+    VDP_data.GPS_total_milg = 0.0
     VDP_data.IMU_tSignalSt = 0
 
 
 # --------------------------------------------------------------------------------
 #  [Thread]
-# --------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------     
+        
+def thread_GPS( gps, VDP_data ):
+    gps.initData()
+    VDP_data_init( VDP_data )
+    while THREAD_RUN_ST:
+        result = gps.run()
+        if result:
+            speed, dist = result
+            VDP_data.GPS_speed_kph = round( speed, 1 )
+            VDP_data.GPS_total_milg = round( dist, 1 )
+        print(f"speed: {VDP_data.GPS_speed_kph}, mileage: {VDP_data.GPS_total_milg}")
+        time.sleep(0.1)
+
+
+def thread_IMU( imu, VDP_data ):
+    while THREAD_RUN_ST:
+        tSignal = imu.run()
+        if tSignal is not None:
+            VDP_data.IMU_tSignalSt = tSignal
+        # print(tSignal)
+        time.sleep(0.05)
+
+
 def init_thread_multiprocess(gps = None, imu = None, VDP_data = None, app_queue = None, lds_queue = None) : 
     global THREAD_RUN_ST
+
+
     THREAD_RUN_ST = True
     print("INIT THREAD")
     gps_thread = threading.Thread(target=thread_GPS, args=(gps, VDP_data))
@@ -106,7 +137,7 @@ def init_thread_multiprocess(gps = None, imu = None, VDP_data = None, app_queue 
     # 파란색 led on 
     GPIO.toggle_LED(GPIO.BLUE_LED, 1)
     return proc_APP, proc_LDS, gps_thread, imu_thread
-     
+
 
 def exit_thread_multiprocess(app_queue = None, lds_queue = None, proc_APP = None, proc_LDS = None, gps_thread = None, imu_thread = None):
     global THREAD_RUN_ST
@@ -121,24 +152,6 @@ def exit_thread_multiprocess(app_queue = None, lds_queue = None, proc_APP = None
     imu_thread.join()
     # 파란색 led off 
     GPIO.toggle_LED(GPIO.BLUE_LED, 0)
-        
-def thread_GPS( gps, VDP_data ):
-    while THREAD_RUN_ST:
-        result = gps.run()
-        if result:
-            speed, dist = result
-            VDP_data.GPS_speed_kph = speed
-            VDP_data.GPS_total_dist = dist
-        #print(f"speed: {speed:.1f}, distance: {dist:.1f}")
-        time.sleep(0.1)
-
-def thread_IMU(imu, VDP_data ):
-    while THREAD_RUN_ST:
-        tSignal = imu.run()
-        if tSignal is not None:
-            VDP_data.IMU_tSignalSt = tSignal
-        # print(tSignal)
-        time.sleep(0.05)
 
 
 # --------------------------------------------------------------------------------

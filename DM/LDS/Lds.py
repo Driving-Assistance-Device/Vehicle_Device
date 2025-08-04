@@ -36,7 +36,7 @@ def Lds_Stop( source, queue ):
         "payload": {
             "laneOffset": g.rtn_lOffset,
             "carDist": g.rtn_cDist,
-            "mileage": g.rtn_tDist
+            "mileage": g.rtn_tMilg
         }
     }
     
@@ -108,7 +108,8 @@ def Lds_Init( mode, path ):
 def Lds_Run( mode, path, hef, label, queue, VDP_data ):
 
 
-    # Init ( open video source )
+    # Init
+    dataHandler.initHandler()
     source = Lds_Init( mode, path )
 
     # Init hailo
@@ -163,11 +164,11 @@ def Lds_Run( mode, path, hef, label, queue, VDP_data ):
                 frame = convFrameHD( frame ) 
 
             # 180 flip
-            rotated_frame = cv2.rotate(frame, cv2.ROTATE_180)
-            detFrame, hLine = laneDet.ldRun( rotated_frame )
+            # rotated_frame = cv2.rotate(frame, cv2.ROTATE_180)
+            # detFrame, hLine = laneDet.ldRun( rotated_frame )
 
             # Lane detect process
-            # detFrame, hLine = laneDet.ldRun( frame )
+            detFrame, hLine = laneDet.ldRun( frame )
             ldOffsetFrame = laneDet.ldOffset( detFrame )
 
             # Get lane area
