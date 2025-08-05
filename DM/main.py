@@ -15,7 +15,13 @@ import gData as g
 
 
 
+# --------------------------------------------------------------------------------
+#  Flag
+# --------------------------------------------------------------------------------
+
 DEVICE_STATE = False 
+THREAD_RUN_ST = True
+
 
 # --------------------------------------------------------------------------------
 #  APP
@@ -46,6 +52,116 @@ LDS_LABEL_PATH = "./LDS/labals.txt"
 #  socket
 # --------------------------------------------------------------------------------
 
+URL = "wss://api.driving.p-e.kr/ws"
+ssl_context = ssl._create_unverified_context()
+
+
+ws_lock = asyncio.Lock()
+
+
+async def connect_until_success(uri):
+    ssl_context = ssl._create_unverified_context()
+
+    while True:
+        try:
+            print("[INFO] Trying to connect to WebSocket...")
+            websocket = await websockets.connect(uri, ssl=ssl_context)
+            print("[SUCCESS] Connected to WebSocket server.")
+           # await websocket.close()
+            return websocket
+        except Exception as e:
+            print("[RETRY] Connection failed:", e)
+            await asyncio.sleep(2)  # 2초 후 재시도
+
+
+async def send_msg(websocket, msg):
+    try:
+        await websocket.send(json.dumps(msg))
+        print("[INFO] Message sent:", msg)
+
+        response = await websocket.recv()
+        print("[WS] Response received:", response)
+        return response
+
+    except websockets.exceptions.ConnectionClosed:
+        print("[ERROR] WebSocket connection closed. Reconnecting...")
+        return "RECONNECT"
+        
+    except Exception as e:
+        print("[ERROR] Communication failed:", e)
+        return None
+    
+
+## 계속 webscoket 통신하는 쓰레드 2
+async def thread_check_state(websocket): 
+    msg = {
+        "type": "DRIVING:STATUS",
+        "payload": {
+            "status": True
+        }
+    }
+
+    try:
+        async with ws_lock:  # webscoket lock
+            await websocket.send(json.dumps(msg))
+            print("[INFO] Message sent:", msg)
+
+            response = await websocket.recv()
+            print("[WS] Response received:", response)
+
+    except Exception as e:
+        print("[ERROR] Communication failed:", e)
+        return None
+
+
+async def thread_check_state(websocket) : 
+    #await asyncio.sleep(0.1)
+    msg = {
+        "type": "DRIVING:STATUS",
+        "payload": {
+            "status": True
+        }
+    }
+    ## 여기에 on/off 신호 처리
+    try :
+        await websocket.send(json.dumps(msg))
+        print("[INFO] Message sent:", msg)
+        response = await websocket.recv()
+        print("[WS] Response received:", response)
+    except Exception as e:
+        print("[ERROR] Communication failed:", e)
+        return None
+
+
+check_state_task = None
+check_state_stop_event = None
+check_state_running = False
+
+
+async def thread_check_state_wrapper(websocket, stop_event):
+    while not stop_event.is_set():
+        await thread_check_state(websocket)
+        await asyncio.sleep(1.0)
+
+
+def start_check_state_task(websocket):
+    global check_state_task, check_state_stop_event, check_state_running
+    check_state_stop_event = asyncio.Event()
+    check_state_task = asyncio.create_task(thread_check_state_wrapper(websocket, check_state_stop_event))
+    check_state_running = True
+    print("[INFO] check_state Thread begin")
+
+
+async def stop_check_state_task():
+    global check_state_task, check_state_stop_event, check_state_running
+    if check_state_stop_event:
+        check_state_stop_event.set()
+    if check_state_task:
+        await check_state_task
+    check_state_running = False
+    print("[INFO] check_state Thread end")
+
+
 async def send_result(websocket, msg_app, msg_lds) :
     app_flag = True
     Lds_flag = True
@@ -69,18 +185,6 @@ async def send_result(websocket, msg_app, msg_lds) :
         if not app_flag and not Lds_flag:
             break
         
-        
-
-## 07.31 url 주소 니오면 안될 것 같아서 일단 지움
-URL = "wss://api.driving.p-e.kr/ws"
-ssl_context = ssl._create_unverified_context()
-
-# --------------------------------------------------------------------------------
-#  Thread run state
-# --------------------------------------------------------------------------------
-
-THREAD_RUN_ST = True
-
 
 # --------------------------------------------------------------------------------
 #  Namespace data
@@ -95,56 +199,6 @@ def VDP_data_init( VDP_data ):
 # --------------------------------------------------------------------------------
 #  [Thread]
 # --------------------------------------------------------------------------------     
-
-## 계속 webscoket 통신하는 쓰레드 1
-def thread_GPS(gps, VDP_data, websocket):
-    gps.initData()
-    VDP_data_init(VDP_data)
-
-    last_sent_mileage = 0.0
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    while THREAD_RUN_ST:
-        result = gps.run()
-        if result:
-            speed, dist = result
-            VDP_data.GPS_speed_kph = round(speed, 1)
-            VDP_data.GPS_total_milg = round(dist / 1000.0, 4)
-
-            print(f"speed: {VDP_data.GPS_speed_kph}, mileage: {VDP_data.GPS_total_milg}")
-
-            if abs(VDP_data.GPS_total_milg - last_sent_mileage) >= 0.1:
-                msg = {
-                    "type": "DRIVING:MILEAGE",
-                    "payload": {
-                        "mileage": VDP_data.GPS_total_milg
-                    }
-                }
-
-                try:
-                    loop.run_until_complete(send_ws_with_lock(websocket, msg))
-                    last_sent_mileage = VDP_data.GPS_total_milg
-                except Exception as e:
-                    print("[ERROR] Failed to send GPS data:", e)
-
-        time.sleep(0.1)  # GPS poll 간격
-
-# 별도 비동기 함수로 분리
-async def send_ws_with_lock(websocket, msg):
-    async with ws_lock:
-        await websocket.send(json.dumps(msg))
-        print("[GPS] Sent mileage update:", msg)
-
-def thread_IMU( imu, VDP_data ):
-    while THREAD_RUN_ST:
-        tSignal = imu.run()
-        if tSignal is not None:
-            VDP_data.IMU_tSignalSt = tSignal
-        # print(tSignal)
-        time.sleep(0.05)
-
 
 def init_thread_multiprocess(gps = None, imu = None, VDP_data = None, app_queue = None, lds_queue = None, websocket = None) : 
     global THREAD_RUN_ST
@@ -168,6 +222,56 @@ def init_thread_multiprocess(gps = None, imu = None, VDP_data = None, app_queue 
     return proc_APP, proc_LDS, gps_thread, imu_thread
 
 
+def thread_GPS(gps, VDP_data, websocket):
+    gps.initData()
+    VDP_data_init(VDP_data)
+
+    last_sent_mileage = 0.0
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    while THREAD_RUN_ST:
+        result = gps.run()
+        if result:
+            speed, dist = result
+            VDP_data.GPS_speed_kph = round(speed, 1)                # km/s
+            VDP_data.GPS_total_milg = round(dist / 1000.0, 1)       # km
+
+            print(f"speed: {VDP_data.GPS_speed_kph}, mileage: {VDP_data.GPS_total_milg}")
+
+            if abs(VDP_data.GPS_total_milg - last_sent_mileage) >= 0.1:
+                msg = {
+                    "type": "DRIVING:MILEAGE",
+                    "payload": {
+                        "curMileage": VDP_data.GPS_total_milg
+                    }
+                }
+
+                try:
+                    loop.run_until_complete(send_ws_with_lock(websocket, msg))
+                    last_sent_mileage = VDP_data.GPS_total_milg
+                except Exception as e:
+                    print("[ERROR] Failed to send GPS data:", e)
+
+        time.sleep(0.1)  # GPS poll 간격
+
+# 별도 비동기 함수로 분리
+async def send_ws_with_lock(websocket, msg):
+    async with ws_lock:
+        await websocket.send(json.dumps(msg))
+        print("[GPS] Sent mileage update:", msg)
+
+
+def thread_IMU( imu, VDP_data ):
+    while THREAD_RUN_ST:
+        tSignal = imu.run()
+        if tSignal is not None:
+            VDP_data.IMU_tSignalSt = tSignal
+        # print(tSignal)
+        time.sleep(0.05)
+
+
 def exit_thread_multiprocess(app_queue = None, lds_queue = None, proc_APP = None, proc_LDS = None, gps_thread = None, imu_thread = None):
     global THREAD_RUN_ST
     print("EXIT THREAD")
@@ -183,106 +287,6 @@ def exit_thread_multiprocess(app_queue = None, lds_queue = None, proc_APP = None
     GPIO.toggle_LED(GPIO.BLUE_LED, 0)
 
 
-# --------------------------------------------------------------------------------
-#  백엔드 시작/종료 신호 확인 함수
-# --------------------------------------------------------------------------------
-ws_lock = asyncio.Lock()
-
-async def connect_until_success(uri):
-    ssl_context = ssl._create_unverified_context()
-
-    while True:
-        try:
-            print("[INFO] Trying to connect to WebSocket...")
-            websocket = await websockets.connect(uri, ssl=ssl_context)
-            print("[SUCCESS] Connected to WebSocket server.")
-           # await websocket.close()
-            return websocket
-        except Exception as e:
-            print("[RETRY] Connection failed:", e)
-            await asyncio.sleep(2)  # 2초 후 재시도
-
-async def send_msg(websocket, msg):
-    try:
-        await websocket.send(json.dumps(msg))
-        print("[INFO] Message sent:", msg)
-
-        response = await websocket.recv()
-        print("[WS] Response received:", response)
-        return response
-
-    except websockets.exceptions.ConnectionClosed:
-        print("[ERROR] WebSocket connection closed. Reconnecting...")
-        return "RECONNECT"
-        
-    except Exception as e:
-        print("[ERROR] Communication failed:", e)
-        return None
-    
-## 계속 webscoket 통신하는 쓰레드 2
-async def thread_check_state(websocket): 
-    msg = {
-        "type": "DRIVING:STATUS",
-        "payload": {
-            "status": True
-        }
-    }
-
-    try:
-        async with ws_lock:  # webscoket lock
-            await websocket.send(json.dumps(msg))
-            print("[INFO] Message sent:", msg)
-
-            response = await websocket.recv()
-            print("[WS] Response received:", response)
-
-    except Exception as e:
-        print("[ERROR] Communication failed:", e)
-        return None
-
-async def thread_check_state(websocket) : 
-    #await asyncio.sleep(0.1)
-    msg = {
-        "type": "DRIVING:STATUS",
-        "payload": {
-            "status": True
-        }
-    }
-    ## 여기에 on/off 신호 처리
-    try :
-        await websocket.send(json.dumps(msg))
-        print("[INFO] Message sent:", msg)
-        response = await websocket.recv()
-        print("[WS] Response received:", response)
-    except Exception as e:
-        print("[ERROR] Communication failed:", e)
-        return None
-
-check_state_task = None
-check_state_stop_event = None
-check_state_running = False
-
-async def thread_check_state_wrapper(websocket, stop_event):
-    while not stop_event.is_set():
-        await thread_check_state(websocket)
-        await asyncio.sleep(1.0)
-
-def start_check_state_task(websocket):
-    global check_state_task, check_state_stop_event, check_state_running
-    check_state_stop_event = asyncio.Event()
-    check_state_task = asyncio.create_task(thread_check_state_wrapper(websocket, check_state_stop_event))
-    check_state_running = True
-    print("[INFO] check_state Thread begin")
-
-async def stop_check_state_task():
-    global check_state_task, check_state_stop_event, check_state_running
-    if check_state_stop_event:
-        check_state_stop_event.set()
-    if check_state_task:
-        await check_state_task
-    check_state_running = False
-    print("[INFO] check_state Thread end")
-    
 # --------------------------------------------------------------------------------
 #  main
 # --------------------------------------------------------------------------------
@@ -351,8 +355,6 @@ async def main():
         await send_result(websocket, msg_app, msg_lds)
    
         
-            
-
 if __name__ == "__main__":
     #gpio init
     GPIO.init_GPIO()
