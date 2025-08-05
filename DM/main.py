@@ -22,10 +22,10 @@ DEVICE_STATE = False
 #  APP
 # --------------------------------------------------------------------------------
 
-APP_CAM_CH = 2
+APP_CAM_CH = 0
 
 ## 테스트 버전이라 얼굴 나온 영상 뺌 ㅎㅎ
-APP_VIDEO_PATH = './videos/4.mp4'
+APP_VIDEO_PATH = './videos/APP_0.mp4'
 APP_HEF_PATH = './app/weight/gaze.hef'
 APP_LABEL_PATH = './app/weight/coco.txt'
 
@@ -34,9 +34,9 @@ APP_LABEL_PATH = './app/weight/coco.txt'
 #  LDS
 # --------------------------------------------------------------------------------
 
-LDS_CAM_CH = 0
+LDS_CAM_CH = 2
 
-LDS_VIDEO_PATH = "./videos/2.mp4"
+LDS_VIDEO_PATH = "./videos/LDS_0.mp4"
 LDS_HEF_PATH = "./LDS/yolov7.hef"
 LDS_LABEL_PATH = "./LDS/labals.txt"
 
@@ -104,7 +104,7 @@ def thread_GPS( gps, VDP_data ):
             speed, dist = result
             VDP_data.GPS_speed_kph = round( speed, 1 )
             VDP_data.GPS_total_milg = round( dist, 1 )
-        print(f"speed: {VDP_data.GPS_speed_kph}, mileage: {VDP_data.GPS_total_milg}")
+        # print(f"speed: {VDP_data.GPS_speed_kph}, mileage: {VDP_data.GPS_total_milg}")
         time.sleep(0.1)
 
 

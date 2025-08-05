@@ -50,15 +50,17 @@ class VDP_IMU:
             a = self.mpu.acceleration
             g = self.mpu.gyro
 
-            LEFT_THRESHOLD = -14.0
-            RIGHT_THRESHOLD = -31.0
-            MARGIN = 7.0
+            LEFT_THRESHOLD = -15.0
+            RIGHT_THRESHOLD = -27.0
+            MARGIN = 10.0
             COUNT_THRESHOLD = 6  # 약 0.3초 (0.05s * 6)
 
             LEFT_MARGIN = LEFT_THRESHOLD + MARGIN
             RIGHT_MARGIN = RIGHT_THRESHOLD - MARGIN
 
             roll = math.atan2(a[1], a[2]) * 180 / math.pi
+
+            # print(f"a0:{a[0]:.2f}, a1:{a[1]:.2f}, a2:{a[2]:.2f} | g0:{g[0]:.2f}, g1:{g[1]:.2f}, g2:{g[2]:.2f}")
             # print(f"roll: {roll:.2f}")
 
             # 1단계: 현재 raw 방향 판별
