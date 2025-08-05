@@ -14,7 +14,6 @@ from VDP.IMU import VDP_IMU
 import gData as g
 
 
-MODE = 1      # 0:jpg, 1:mp4, 2:usb cam
 
 DEVICE_STATE = False 
 
@@ -33,6 +32,8 @@ APP_LABEL_PATH = './app/weight/coco.txt'
 # --------------------------------------------------------------------------------
 #  LDS
 # --------------------------------------------------------------------------------
+
+LDS_MODE = 1      # 0:jpg, 1:mp4, 2:usb cam
 
 LDS_CAM_CH = 2
 
@@ -94,19 +95,47 @@ def VDP_data_init( VDP_data ):
 # --------------------------------------------------------------------------------
 #  [Thread]
 # --------------------------------------------------------------------------------     
-        
-def thread_GPS( gps, VDP_data ):
+
+## 계속 webscoket 통신하는 쓰레드 1
+def thread_GPS(gps, VDP_data, websocket):
     gps.initData()
-    VDP_data_init( VDP_data )
+    VDP_data_init(VDP_data)
+
+    last_sent_mileage = 0.0
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     while THREAD_RUN_ST:
         result = gps.run()
         if result:
             speed, dist = result
-            VDP_data.GPS_speed_kph = round( speed, 1 )
-            VDP_data.GPS_total_milg = round( dist, 1 )
-        # print(f"speed: {VDP_data.GPS_speed_kph}, mileage: {VDP_data.GPS_total_milg}")
-        time.sleep(0.1)
+            VDP_data.GPS_speed_kph = round(speed, 1)
+            VDP_data.GPS_total_milg = round(dist / 1000.0, 4)
 
+            print(f"speed: {VDP_data.GPS_speed_kph}, mileage: {VDP_data.GPS_total_milg}")
+
+            if abs(VDP_data.GPS_total_milg - last_sent_mileage) >= 0.1:
+                msg = {
+                    "type": "DRIVING:MILEAGE",
+                    "payload": {
+                        "mileage": VDP_data.GPS_total_milg
+                    }
+                }
+
+                try:
+                    loop.run_until_complete(send_ws_with_lock(websocket, msg))
+                    last_sent_mileage = VDP_data.GPS_total_milg
+                except Exception as e:
+                    print("[ERROR] Failed to send GPS data:", e)
+
+        time.sleep(0.1)  # GPS poll 간격
+
+# 별도 비동기 함수로 분리
+async def send_ws_with_lock(websocket, msg):
+    async with ws_lock:
+        await websocket.send(json.dumps(msg))
+        print("[GPS] Sent mileage update:", msg)
 
 def thread_IMU( imu, VDP_data ):
     while THREAD_RUN_ST:
@@ -117,17 +146,17 @@ def thread_IMU( imu, VDP_data ):
         time.sleep(0.05)
 
 
-def init_thread_multiprocess(gps = None, imu = None, VDP_data = None, app_queue = None, lds_queue = None) : 
+def init_thread_multiprocess(gps = None, imu = None, VDP_data = None, app_queue = None, lds_queue = None, websocket = None) : 
     global THREAD_RUN_ST
 
 
     THREAD_RUN_ST = True
     print("INIT THREAD")
-    gps_thread = threading.Thread(target=thread_GPS, args=(gps, VDP_data))
+    gps_thread = threading.Thread(target=thread_GPS, args=(gps, VDP_data, websocket))
     imu_thread = threading.Thread(target=thread_IMU, args=(imu, VDP_data))  
 
     proc_APP = Process(target=app.app_Run, args=(APP_VIDEO_PATH, APP_HEF_PATH, APP_LABEL_PATH, app_queue))
-    proc_LDS = Process(target=Lds.Lds_Run, args=(MODE, LDS_VIDEO_PATH, LDS_HEF_PATH, LDS_LABEL_PATH, lds_queue, VDP_data))
+    proc_LDS = Process(target=Lds.Lds_Run, args=(LDS_MODE, LDS_VIDEO_PATH, LDS_HEF_PATH, LDS_LABEL_PATH, lds_queue, VDP_data))
 
     gps_thread.start()
     imu_thread.start()
@@ -157,6 +186,7 @@ def exit_thread_multiprocess(app_queue = None, lds_queue = None, proc_APP = None
 # --------------------------------------------------------------------------------
 #  백엔드 시작/종료 신호 확인 함수
 # --------------------------------------------------------------------------------
+ws_lock = asyncio.Lock()
 
 async def connect_until_success(uri):
     ssl_context = ssl._create_unverified_context()
@@ -171,7 +201,6 @@ async def connect_until_success(uri):
         except Exception as e:
             print("[RETRY] Connection failed:", e)
             await asyncio.sleep(2)  # 2초 후 재시도
-   
 
 async def send_msg(websocket, msg):
     try:
@@ -190,6 +219,26 @@ async def send_msg(websocket, msg):
         print("[ERROR] Communication failed:", e)
         return None
     
+## 계속 webscoket 통신하는 쓰레드 2
+async def thread_check_state(websocket): 
+    msg = {
+        "type": "DRIVING:STATUS",
+        "payload": {
+            "status": True
+        }
+    }
+
+    try:
+        async with ws_lock:  # webscoket lock
+            await websocket.send(json.dumps(msg))
+            print("[INFO] Message sent:", msg)
+
+            response = await websocket.recv()
+            print("[WS] Response received:", response)
+
+    except Exception as e:
+        print("[ERROR] Communication failed:", e)
+        return None
 
 async def thread_check_state(websocket) : 
     #await asyncio.sleep(0.1)
@@ -274,7 +323,7 @@ async def main():
     
 
         # start thread and process
-        proc_APP, proc_LDS , gps_thread, imu_thread= init_thread_multiprocess(gps, imu, VDP_data, app_queue, lds_queue)
+        proc_APP, proc_LDS , gps_thread, imu_thread= init_thread_multiprocess(gps, imu, VDP_data, app_queue, lds_queue, websocket)
 
         # end signal 수신 
         print("Press button 0 to stop")
