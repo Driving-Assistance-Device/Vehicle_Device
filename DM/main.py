@@ -49,10 +49,11 @@ LDS_LABEL_PATH = "./LDS/labals.txt"
 #  socket
 # --------------------------------------------------------------------------------
 
-# URL = "wss://api.driving.p-e.kr/ws"
-URL = "wss://api.driving.p-e.kr/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwYXlsb2FkIjp7InVzZXJJZCI6MSwidHlwZSI6IkFUIiwiaXNzdWVyIjoiTUpVRFJJVklORyJ9LCJpYXQiOjE3NTQ1NDg3MDIsImV4cCI6MTc1NDU1MjMwMn0.EuikrZX1AkbXOerSXtdK9kul7b-JzU5OLH5486UWkOU"
+URL = "wss://api.driving.p-e.kr/ws"
 ssl_context = ssl._create_unverified_context()
 ws_lock = asyncio.Lock()
+GPS_cur_milg = 0
+gps_milg_lock = threading.Lock()
 
 async def init_device() :
 
@@ -110,29 +111,33 @@ async def send_msg(websocket, msg):
 async def thread_check_state(websocket): 
     global DEVICE_STATE
 
-    msg = {
-        "type": "DRIVING:STATUS",
-        "payload": {
-            "deviceId": DEIVCE_ID,
-            "mileage" : 10
-        }
-    }
-    while True :
-        receive = await send_msg(websocket, msg)
+    while True:
+        with gps_milg_lock:
+            mileage = GPS_cur_milg
 
+        msg = {
+            "type": "DRIVING:STATUS",
+            "payload": {
+                "deviceId": DEIVCE_ID,
+                "mileage": mileage
+            }
+        }
+
+        receive = await send_msg(websocket, msg)
         status = json.loads(receive)
         test = status["data"]["status"]
 
-        if test == 0 : 
+        if test == 0:
             DEVICE_STATE = 0
             print("DEVICE_STATE : 0")
-        elif test == 1 :
+        elif test == 1:
             DEVICE_STATE = 1
             print("DEVICE_STATE : 1")
-        elif test == 2 :
+        elif test == 2:
             DEVICE_STATE = 2
             print("DEVICE_STATE : 2")    
-        time.sleep(1)
+
+        await asyncio.sleep(1)
 
 
 check_state_task = None
@@ -212,7 +217,7 @@ def init_thread_multiprocess(gps = None, imu = None, VDP_data = None, app_queue 
 
     THREAD_RUN_ST = True
     print("INIT THREAD")
-    gps_thread = threading.Thread(target=thread_GPS, args=(gps, VDP_data, websocket))
+    gps_thread = threading.Thread(target=thread_GPS, args=(gps, VDP_data))
     imu_thread = threading.Thread(target=thread_IMU, args=(imu, VDP_data))  
 
     proc_APP = Process(target=app.app_Run, args=(APP_VIDEO_PATH, APP_HEF_PATH, APP_LABEL_PATH, app_queue))
@@ -228,11 +233,12 @@ def init_thread_multiprocess(gps = None, imu = None, VDP_data = None, app_queue 
     return proc_APP, proc_LDS, gps_thread, imu_thread
 
 
-def thread_GPS(gps, VDP_data, websocket):
+def thread_GPS(gps, VDP_data):
+
+    global GPS_cur_milg
+
     gps.initData()
     VDP_data_init(VDP_data)
-
-    last_sent_mileage = 0.0
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -241,28 +247,16 @@ def thread_GPS(gps, VDP_data, websocket):
         result = gps.run()
         if result:
             speed, dist = result
-            VDP_data.GPS_speed_kph = round(speed, 1)                # km/s
-            VDP_data.GPS_total_milg = round(dist / 1000.0, 1)       # km
+            VDP_data.GPS_speed_kph = round(speed, 1)
+            VDP_data.GPS_total_milg = round(dist, 1)
+
+            with gps_milg_lock:
+                GPS_cur_milg = VDP_data.GPS_total_milg
 
             print(f"speed: {VDP_data.GPS_speed_kph}, mileage: {VDP_data.GPS_total_milg}")
 
-            if abs(VDP_data.GPS_total_milg - last_sent_mileage) >= 0.1:
-                msg = {
-                    "type": "DRIVING:STATUS",
-                    "payload": {
-                        "deviceId" : DEIVCE_ID,
-                        "mileage": VDP_data.GPS_total_milg
-                    }
-                }
+        time.sleep(0.1)
 
-                try:
-                    # send_msg(websocket, msg)
-                    loop.run_until_complete(send_ws_with_lock(websocket, msg))
-                    last_sent_mileage = VDP_data.GPS_total_milg
-                except Exception as e:
-                    print("[ERROR] Failed to send GPS data:", e)
-
-        time.sleep(0.1)  # GPS poll 간격
 
 # 별도 비동기 함수로 분리
 async def send_ws_with_lock(websocket, msg):
@@ -281,7 +275,8 @@ def thread_IMU( imu, VDP_data ):
 
 
 def exit_thread_multiprocess(app_queue = None, lds_queue = None, proc_APP = None, proc_LDS = None, gps_thread = None, imu_thread = None):
-    global THREAD_RUN_ST
+    global THREAD_RUN_ST, GPS_cur_milg
+
     print("EXIT THREAD")
     app_queue.put("EXIT")
     lds_queue.put("EXIT")
@@ -291,6 +286,10 @@ def exit_thread_multiprocess(app_queue = None, lds_queue = None, proc_APP = None
     THREAD_RUN_ST = False
     gps_thread.join()
     imu_thread.join()
+
+    with gps_milg_lock:
+        GPS_cur_milg = 0
+
     # 파란색 led off 
     GPIO.toggle_LED(GPIO.BLUE_LED, 0)
 
@@ -319,7 +318,6 @@ async def main():
     websocket = await init_device()
     # websocket = None
     start_check_state_task(websocket)
-    last_device_state = DEVICE_STATE
 
     proc_APP = proc_LDS = gps_thread = imu_thread = None
     
@@ -339,8 +337,6 @@ async def main():
             )
             print("[INFO] DEVICE_STATE OFF")
            
-           
-
         elif DEVICE_STATE == 2 and flag == 1:
             flag = 0
             exit_thread_multiprocess(
