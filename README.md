@@ -26,4 +26,5 @@
 
 
 # System Overview
+<img width="747" height="305" alt="Image" src="https://github.com/user-attachments/assets/e801dcb8-b9e7-4b6f-a118-64af0e3e18f0" />
 
