@@ -14,22 +14,19 @@ from VDP.IMU import VDP_IMU
 import gData as g
 
 
-
 # --------------------------------------------------------------------------------
 #  Flag
 # --------------------------------------------------------------------------------
-
-DEVICE_STATE = False 
+DEVICE_STATE = 0 
 THREAD_RUN_ST = True
-
+DEIVCE_CODE = "adasdafagfas1_Ada_dasgafsadas"
+DEIVCE_ID = None
 
 # --------------------------------------------------------------------------------
 #  APP
 # --------------------------------------------------------------------------------
-
 APP_CAM_CH = 0
 
-## 테스트 버전이라 얼굴 나온 영상 뺌 ㅎㅎ
 APP_VIDEO_PATH = './videos/APP_0.mp4'
 APP_HEF_PATH = './app/weight/gaze.hef'
 APP_LABEL_PATH = './app/weight/coco.txt'
@@ -52,12 +49,27 @@ LDS_LABEL_PATH = "./LDS/labals.txt"
 #  socket
 # --------------------------------------------------------------------------------
 
-URL = "wss://api.driving.p-e.kr/ws"
+# URL = "wss://api.driving.p-e.kr/ws"
+URL = "wss://api.driving.p-e.kr/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwYXlsb2FkIjp7InVzZXJJZCI6MSwidHlwZSI6IkFUIiwiaXNzdWVyIjoiTUpVRFJJVklORyJ9LCJpYXQiOjE3NTQ1NDg3MDIsImV4cCI6MTc1NDU1MjMwMn0.EuikrZX1AkbXOerSXtdK9kul7b-JzU5OLH5486UWkOU"
 ssl_context = ssl._create_unverified_context()
-
-
 ws_lock = asyncio.Lock()
 
+async def init_device() :
+
+    global DEIVCE_ID
+
+    websocket = await connect_until_success(URL)
+    msg = {
+        "type": "DEVICE:HELLO",
+        "payload": {
+            "code": DEIVCE_CODE
+        }
+    }
+    response = await send_msg(websocket, msg)
+    data = json.loads(response)
+    DEIVCE_ID = data["data"]["deviceId"]
+    print("DEVICE_ID", DEIVCE_ID)
+    return websocket
 
 async def connect_until_success(uri):
     ssl_context = ssl._create_unverified_context()
@@ -76,61 +88,51 @@ async def connect_until_success(uri):
 
 async def send_msg(websocket, msg):
     try:
-        await websocket.send(json.dumps(msg))
-        print("[INFO] Message sent:", msg)
-
-        response = await websocket.recv()
-        print("[WS] Response received:", response)
-        return response
-
-    except websockets.exceptions.ConnectionClosed:
-        print("[ERROR] WebSocket connection closed. Reconnecting...")
-        return "RECONNECT"
-        
-    except Exception as e:
-        print("[ERROR] Communication failed:", e)
-        return None
-    
-
-## 계속 webscoket 통신하는 쓰레드 2
-async def thread_check_state(websocket): 
-    msg = {
-        "type": "DRIVING:STATUS",
-        "payload": {
-            "status": True
-        }
-    }
-
-    try:
-        async with ws_lock:  # webscoket lock
+        async with ws_lock:  
             await websocket.send(json.dumps(msg))
             print("[INFO] Message sent:", msg)
 
             response = await websocket.recv()
             print("[WS] Response received:", response)
 
+        return response
+
+    except websockets.ConnectionClosed:
+        print("[ERROR] WebSocket connection closed. Reconnecting...")
+        return "RECONNECT"
+
     except Exception as e:
         print("[ERROR] Communication failed:", e)
         return None
+    
 
+## 주행상태 확인 
+async def thread_check_state(websocket): 
+    global DEVICE_STATE
 
-async def thread_check_state(websocket) : 
-    #await asyncio.sleep(0.1)
     msg = {
         "type": "DRIVING:STATUS",
         "payload": {
-            "status": True
+            "deviceId": DEIVCE_ID,
+            "mileage" : 10
         }
     }
-    ## 여기에 on/off 신호 처리
-    try :
-        await websocket.send(json.dumps(msg))
-        print("[INFO] Message sent:", msg)
-        response = await websocket.recv()
-        print("[WS] Response received:", response)
-    except Exception as e:
-        print("[ERROR] Communication failed:", e)
-        return None
+    while True :
+        receive = await send_msg(websocket, msg)
+
+        status = json.loads(receive)
+        test = status["data"]["status"]
+
+        if test == 0 : 
+            DEVICE_STATE = 0
+            print("DEVICE_STATE : 0")
+        elif test == 1 :
+            DEVICE_STATE = 1
+            print("DEVICE_STATE : 1")
+        elif test == 2 :
+            DEVICE_STATE = 2
+            print("DEVICE_STATE : 2")    
+        time.sleep(1)
 
 
 check_state_task = None
@@ -163,26 +165,30 @@ async def stop_check_state_task():
 
 
 async def send_result(websocket, msg_app, msg_lds) :
-    app_flag = True
-    Lds_flag = True
+    flag = True
+    final_msg = {
+        "type": "DRIVING:STOP",
+        "payload": {
+            "deviceId": DEIVCE_ID,
+            "mileage": msg_lds.get("mileage", 0),
+            "bias": msg_lds.get("bias", 0),
+            "headway": msg_lds.get("headway", 0),
+            "left": msg_app.get("left", 0),
+            "right": msg_app.get("right", 0),
+            "front": msg_app.get("front", 0)
+        }
+    }
+    print(final_msg)
+
     while True :
-        if app_flag :
-            result = await send_msg(websocket, msg_app)
+        if flag:
+            result = await send_msg(websocket, final_msg)
             if result == "RECONNECT":
                 websocket = await connect_until_success(URL)
                 continue
             else :
-                app_flag = False
-        
-        if Lds_flag :                
-            result = await send_msg(websocket, msg_lds)
-            if result == "RECONNECT":
-                websocket = await connect_until_success(URL)
-                continue
-            else :
-                Lds_flag = False
-            
-        if not app_flag and not Lds_flag:
+                flag = False 
+        if not flag:
             break
         
 
@@ -242,13 +248,15 @@ def thread_GPS(gps, VDP_data, websocket):
 
             if abs(VDP_data.GPS_total_milg - last_sent_mileage) >= 0.1:
                 msg = {
-                    "type": "DRIVING:MILEAGE",
+                    "type": "DRIVING:STATUS",
                     "payload": {
-                        "curMileage": VDP_data.GPS_total_milg
+                        "deviceId" : DEIVCE_ID,
+                        "mileage": VDP_data.GPS_total_milg
                     }
                 }
 
                 try:
+                    # send_msg(websocket, msg)
                     loop.run_until_complete(send_ws_with_lock(websocket, msg))
                     last_sent_mileage = VDP_data.GPS_total_milg
                 except Exception as e:
@@ -292,7 +300,7 @@ def exit_thread_multiprocess(app_queue = None, lds_queue = None, proc_APP = None
 # --------------------------------------------------------------------------------
 async def main():
 
-    global THREAD_RUN_ST
+    global THREAD_RUN_ST, DEVICE_STATE, DEIVCE_ID
 
     # Create instance
     manager = Manager()
@@ -308,51 +316,50 @@ async def main():
     gps.init()
     imu.init()
 
-    websocket = await connect_until_success(URL)
+    websocket = await init_device()
+    # websocket = None
     start_check_state_task(websocket)
-    ##연결 확인..? 
-    while True:
-        
-        # start signal 수신
-        print("Press button 0 to start")
-        print("Press button 1 to off")
-        
-        while True:
-            if not GPIO.read_button(GPIO.BTN_0):
-                break  
-            elif not GPIO.read_button(GPIO.BTN_1):
-                exit(1)
-            await asyncio.sleep(0.1)
-        await asyncio.sleep(0.5)
+    last_device_state = DEVICE_STATE
+
+    proc_APP = proc_LDS = gps_thread = imu_thread = None
     
+    flag = 0
+    while True:
+        await asyncio.sleep(0.1)
 
-        # start thread and process
-        proc_APP, proc_LDS , gps_thread, imu_thread= init_thread_multiprocess(gps, imu, VDP_data, app_queue, lds_queue, websocket)
+        if DEVICE_STATE == 0:
+            time.sleep(1)
+            continue
 
-        # end signal 수신 
-        print("Press button 0 to stop")
-        while True:
-            if not GPIO.read_button(GPIO.BTN_0):
-                exit_thread_multiprocess(app_queue, lds_queue, proc_APP, proc_LDS, gps_thread, imu_thread)
-                break
-            await asyncio.sleep(0.1)
-        await asyncio.sleep(0.5)
-        
-        
-        # 시선 결과 수신
-        if not app_queue.empty():
-            msg_app = app_queue.get()
-        else:
-            print("[APP]No msg received.")
+        elif DEVICE_STATE == 1 and flag == 0:
+            flag = 1
+            print("[INFO] DEVICE_STATE ON")
+            proc_APP, proc_LDS, gps_thread, imu_thread = init_thread_multiprocess(
+                gps, imu, VDP_data, app_queue, lds_queue, websocket
+            )
+            print("[INFO] DEVICE_STATE OFF")
+           
+           
+
+        elif DEVICE_STATE == 2 and flag == 1:
+            flag = 0
+            exit_thread_multiprocess(
+            app_queue, lds_queue, proc_APP, proc_LDS, gps_thread, imu_thread)
             
-        if not lds_queue.empty():
-            msg_lds = lds_queue.get()
-        else:
-            print("[LDS]No msg received.")
-            
-            
-        ## webSocket send
-        await send_result(websocket, msg_app, msg_lds)
+            # 종료 시점에 app/lds 결과 수신 시도
+            if not app_queue.empty():
+                msg_app = app_queue.get()
+            else:
+                print("[APP] No msg received.")
+                msg_app = {}
+
+            if not lds_queue.empty():
+                msg_lds = lds_queue.get()
+            else:
+                print("[LDS] No msg received.")
+                msg_lds = {}
+                
+            await send_result(websocket, msg_app, msg_lds)
    
         
 if __name__ == "__main__":

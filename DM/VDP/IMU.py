@@ -16,13 +16,18 @@ class VDP_IMU:
         self.IMU_Run = False
 
         self.state = 0
-        self.state_start_time = None
-
         self._prev_raw_state = 0
         self._stable_count = 0
         self._confirmed_state = 0
 
+        self.center = -2.7
+        self.sensitivity = 1.0
+        self.margin = 5.0
 
+        self.LEFT_THRESHOLD = self.center + self.sensitivity
+        self.RIGHT_THRESHOLD = self.center - self.sensitivity
+        self.LEFT_MARGIN = self.LEFT_THRESHOLD + self.margin
+        self.RIGHT_MARGIN = self.RIGHT_THRESHOLD - self.margin
 
 
     def init(self):
@@ -33,13 +38,11 @@ class VDP_IMU:
 
         self.IMU_Run = True
         self.state = 0
-        self.state_start_time = None 
 
 
     def stop(self):
         print("IMU parsing stop.")
         self.IMU_Run = False
-
 
 
     def getState(self):
@@ -50,35 +53,29 @@ class VDP_IMU:
             a = self.mpu.acceleration
             g = self.mpu.gyro
 
-            LEFT_THRESHOLD = -15.0
-            RIGHT_THRESHOLD = -27.0
-            MARGIN = 10.0
-            COUNT_THRESHOLD = 6  # 약 0.3초 (0.05s * 6)
+            COUNT_THRESHOLD = 4  # (0.05s * 4)
 
-            LEFT_MARGIN = LEFT_THRESHOLD + MARGIN
-            RIGHT_MARGIN = RIGHT_THRESHOLD - MARGIN
 
-            roll = math.atan2(a[1], a[2]) * 180 / math.pi
+            # roll = math.atan2(a[1], a[2]) * 180 / math.pi
 
             # print(f"a0:{a[0]:.2f}, a1:{a[1]:.2f}, a2:{a[2]:.2f} | g0:{g[0]:.2f}, g1:{g[1]:.2f}, g2:{g[2]:.2f}")
-            # print(f"roll: {roll:.2f}")
 
-            # 1단계: 현재 raw 방향 판별
-            if LEFT_MARGIN > roll > LEFT_THRESHOLD:
+
+            if self.LEFT_THRESHOLD < a[1] < self.LEFT_MARGIN:
                 raw_state = -1  # LEFT
-            elif RIGHT_MARGIN < roll < RIGHT_THRESHOLD:
+            elif self.RIGHT_MARGIN < a[1] < self.RIGHT_THRESHOLD:
                 raw_state = 1   # RIGHT
             else:
                 raw_state = 0   # CENTER
 
-            # 2단계: 연속 유지 확인
+           
             if raw_state == self._prev_raw_state:
                 self._stable_count += 1
             else:
                 self._stable_count = 1
                 self._prev_raw_state = raw_state
 
-            # 3단계: 일정 횟수 유지되면 확정
+            
             if self._stable_count >= COUNT_THRESHOLD:
                 if self._confirmed_state != raw_state:
                     self._confirmed_state = raw_state
@@ -88,7 +85,7 @@ class VDP_IMU:
         except Exception as e:
             print(f"[IMU] Error: {e}")
             return self._confirmed_state
-
+        
 
     def run(self):
         if not self.IMU_Run:

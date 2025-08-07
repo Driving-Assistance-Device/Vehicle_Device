@@ -96,12 +96,9 @@ def app_Run(VIDEO_PATH, HEF_PATH, LABEL_PATH, queue):
     cv2.destroyAllWindows()
     # result_msg = f"LEFT:{LEFT}, FRONT:{FRONT}, RIGHT:{RIGHT}"
     result_msg = {
-        "type": "DRIVING:EYES",
-        "payload": {
-            "left": LEFT,
-            "front": FRONT,
-            "right": RIGHT
-        }
+        "left": LEFT,
+        "front": FRONT,
+        "right": RIGHT
     }
     queue.put(result_msg)
 

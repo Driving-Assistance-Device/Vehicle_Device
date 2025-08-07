@@ -32,12 +32,9 @@ def Lds_Stop( source, queue ):
     dataHandler.calc_RtnData()
     
     result_msg = {
-        "type": "DRIVING:MILEAGE",
-        "payload": {
-            "laneOffset": g.rtn_lOffset,
-            "carDist": g.rtn_cDist,
-            "mileage": g.rtn_tMilg
-        }
+        "mileage": g.rtn_tMilg,
+        "bias": g.rtn_lOffset,
+        "headway": g.rtn_cDist
     }
     
     queue.put(result_msg)
