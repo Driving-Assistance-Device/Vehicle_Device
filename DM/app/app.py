@@ -11,13 +11,9 @@ exit_flag = False
 
 
 # 시선 추적 알고리즘 흐름도 
-# 1. 프레임 일고
+# 1. 프레임 읽고
 # 2. mediapipe로 얼굴 각도 추정
 # 3. 정면일 경우 Hailo로 pupil 추적 
-
-# HEF_PATH = './app/weight/jaewon.hef'
-# VIDEO_PATH = 2 #'./app/videos/4.mp4'
-# LABEL_PATH = './app/weight/coco.txt'
 
 ANGLE_STATE = None
 GAZE_STATE = None
@@ -75,16 +71,11 @@ def app_Run(VIDEO_PATH, HEF_PATH, LABEL_PATH, queue):
             FRONT += 1
         elif direction == "RIGHT" :
             RIGHT += 1
-        # print("LEFT:", LEFT, "FRONT:", FRONT, "RIGHT:", RIGHT)
-        
-        #if direction :
-            #print("Detected direction:", direction)
+
         # 시선
         out_frame, detection = gaze.detect_gaze(HEF_PATH, frame, LABEL_PATH)
         gaze_dir = gaze.analyze_gaze_direction(detection) 
-        #print(f"Gaze Direction: {gaze_dir}")
-        # 시선
-        gaze.getData(out_frame,detection)  
+
         
         cv2.imshow("Gaze Detection", cv2.resize(out_frame, (0, 0), fx=0.3, fy=0.3))
         # cv2.imshow("Gaze Detection", out_frame)
@@ -94,7 +85,7 @@ def app_Run(VIDEO_PATH, HEF_PATH, LABEL_PATH, queue):
     
     ## 07.29 결과 전송
     cv2.destroyAllWindows()
-    # result_msg = f"LEFT:{LEFT}, FRONT:{FRONT}, RIGHT:{RIGHT}"
+
     result_msg = {
         "left": LEFT,
         "front": FRONT,

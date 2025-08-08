@@ -130,12 +130,21 @@ async def thread_check_state(websocket):
         if test == 0:
             DEVICE_STATE = 0
             print("DEVICE_STATE : 0")
+            GPIO.toggle_LED(GPIO.RED_LED, 1)
+            GPIO.toggle_LED(GPIO.YELLOW_LED, 0)
+            GPIO.toggle_LED(GPIO.BLUE_LED, 0)
         elif test == 1:
             DEVICE_STATE = 1
             print("DEVICE_STATE : 1")
+            GPIO.toggle_LED(GPIO.RED_LED, 0)
+            GPIO.toggle_LED(GPIO.YELLOW_LED, 1)
+            GPIO.toggle_LED(GPIO.BLUE_LED, 0)
         elif test == 2:
             DEVICE_STATE = 2
-            print("DEVICE_STATE : 2")    
+            print("DEVICE_STATE : 2")
+            GPIO.toggle_LED(GPIO.RED_LED, 0)
+            GPIO.toggle_LED(GPIO.YELLOW_LED, 0)
+            GPIO.toggle_LED(GPIO.BLUE_LED, 1)    
 
         await asyncio.sleep(1)
 
@@ -228,8 +237,6 @@ def init_thread_multiprocess(gps = None, imu = None, VDP_data = None, app_queue 
     proc_APP.start()
     proc_LDS.start()
     
-    # 파란색 led on 
-    GPIO.toggle_LED(GPIO.BLUE_LED, 1)
     return proc_APP, proc_LDS, gps_thread, imu_thread
 
 
@@ -290,8 +297,6 @@ def exit_thread_multiprocess(app_queue = None, lds_queue = None, proc_APP = None
     with gps_milg_lock:
         GPS_cur_milg = 0
 
-    # 파란색 led off 
-    GPIO.toggle_LED(GPIO.BLUE_LED, 0)
 
 
 # --------------------------------------------------------------------------------
