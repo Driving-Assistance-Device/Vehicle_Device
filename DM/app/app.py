@@ -63,20 +63,22 @@ def app_Run(VIDEO_PATH, HEF_PATH, LABEL_PATH, queue):
             break
           
         # 각도
-        frame, direction = faceAngle.process_frame_with_mediapipe(frame)
-        
-        if direction == "LEFT" :
+        frame, face_direction = faceAngle.process_frame_with_mediapipe(frame)
+        out_frame, detection = gaze.detect_gaze(HEF_PATH, frame, LABEL_PATH)
+        if face_direction == "LEFT" :
             LEFT += 1
-        elif direction == "FRONT" :
-            FRONT += 1
-        elif direction == "RIGHT" :
+        elif face_direction == "FRONT" :
+            gaze_dir = gaze.analyze_gaze_direction(detection) 
+            if gaze_dir == "LEFT":
+                LEFT += 1
+            elif gaze_dir == "FRONT":
+                FRONT += 1
+            elif gaze_dir == "RIGHT":
+                RIGHT += 1
+        elif face_direction == "RIGHT" :
             RIGHT += 1
 
         # 시선
-        out_frame, detection = gaze.detect_gaze(HEF_PATH, frame, LABEL_PATH)
-        gaze_dir = gaze.analyze_gaze_direction(detection) 
-
-        
         cv2.imshow("Gaze Detection", cv2.resize(out_frame, (0, 0), fx=0.3, fy=0.3))
         # cv2.imshow("Gaze Detection", out_frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):

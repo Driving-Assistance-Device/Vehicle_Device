@@ -78,8 +78,8 @@ def detect_gaze(hef_path, frame, label_path = 'coco.txt'):
     #         print("Failed to read frame")
     #         break
     output_frame, detections = run(frame)
-    #print('detection:', detections)
-    #cv2.imshow("Gaze Detection", cv2.resize(output_frame, (0, 0), fx=0.3, fy=0.3))
+    # print('detection:', detections)
+    # cv2.imshow("Gaze Detection", cv2.resize(output_frame, (0, 0), fx=0.3, fy=0.3))
     #cv2.imshow('Gaze Detection', output_frame)
     
     return output_frame, detections
@@ -122,13 +122,13 @@ def analyze_gaze_direction(detections: dict) -> str:
     eye_width = eye_x2 - eye_x1
     relative_x = (pupil_center_x - eye_x1) / eye_width  # 0 to 1
     # 07. 31 테스트 필요
-    #print(relative_x)
+    # print(relative_x)
     if not (0 <= relative_x <= 1):
         return 'unknown'  # Pupil is not inside eye
 
-    if relative_x < 0.22:
-        return 'left'
-    elif relative_x > 0.77:
-        return 'right'
-    else:
-        return 'front'
+    if -0.1 <= relative_x <= 0.3:
+        return 'LEFT'
+    elif relative_x >= 0.8:
+        return 'RIGHT'
+    elif 0.3 <= relative_x <= 0.8:
+        return 'FRONT'

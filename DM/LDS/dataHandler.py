@@ -113,12 +113,12 @@ def runHandler( VDP_data ):
             2 : 경고
     '''
     # Lane offset
-    HUD_lane_offset = g.lane_offset     # test
+    # HUD_lane_offset = g.lane_offset     # test
 
-    # if VDP_data.GPS_speed_kph <= 10.0:  # ignore offset
-    #     HUD_lane_offset = 0
-    # else:
-    #     HUD_lane_offset = g.lane_offset
+    if VDP_data.GPS_speed_kph <= 5.0:  # ignore offset
+        HUD_lane_offset = 0
+    else:
+        HUD_lane_offset = g.lane_offset
 
     # Turn signal state
     HUD_tSig_st = VDP_data.IMU_tSignalSt

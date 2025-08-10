@@ -161,11 +161,11 @@ def Lds_Run( mode, path, hef, label, queue, VDP_data ):
                 frame = convFrameHD( frame ) 
 
             # 180 flip
-            # rotated_frame = cv2.rotate(frame, cv2.ROTATE_180)
-            # detFrame, hLine = laneDet.ldRun( rotated_frame )
+            rotated_frame = cv2.rotate(frame, cv2.ROTATE_180)
+            detFrame, hLine = laneDet.ldRun( rotated_frame )
 
             # Lane detect process
-            detFrame, hLine = laneDet.ldRun( frame )
+            # detFrame, hLine = laneDet.ldRun( frame )
             ldOffsetFrame = laneDet.ldOffset( detFrame )
 
             # Get lane area
