@@ -1,10 +1,10 @@
 import cv2
 import numpy as np
-import gData as g
+from lib import gData as g
 import queue
 import threading
-from utils import HailoAsyncInference
-from object_detection_utils import ObjectDetectionUtils
+from lib.utils import HailoAsyncInference
+from lib.object_detection_utils import ObjectDetectionUtils
 
 
 
@@ -80,7 +80,7 @@ def runCarDet( frame ):
 # --------------------------------------------------------------------------------
 
 def pixel_to_meter( pixel_distance, a=0.04, b=0.0 ):
-    """
+    '''
     픽셀 거리(px) → 실제 거리(m) 변환
 
     pixel_distance : 하단 중심 ~ 차량 박스 하단 y축 길이
@@ -90,7 +90,7 @@ def pixel_to_meter( pixel_distance, a=0.04, b=0.0 ):
     기본값 a=0.04는 예시 (예: 100px → 4m)
         a : 1픽셀당 실제 거리(m)
     b는 오프셋 (필요시 보정, 일반적으로 0)
-    """
+    '''
     return a * pixel_distance + b
 
 
@@ -140,6 +140,8 @@ def getCarDist( frame, detections, laneArea ):
         g.car_dist = pixel_to_meter( closest_px_dist )
     else:
         g.car_dist = -1  # Exception value without vehicle           # del??
+
+
 
 
 

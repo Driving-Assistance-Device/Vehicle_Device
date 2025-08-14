@@ -2,8 +2,8 @@
 #
 #  Lane detection & Car distance System
 # 
-#  Python :      | NumPy : 
-#  openCV :      | YOLO  : 
+#  Python :      | NumPy :
+#  openCV :      | YOLO  :
 #
 #--------------------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ import cv2
 import time         # for uart, debug (fps)
 import serial       # for uart
 
-import gData as g
+from lib import gData as g
 from . import laneDet
 from . import carDist
 from . import dataHandler

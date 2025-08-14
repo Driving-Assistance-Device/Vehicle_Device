@@ -93,3 +93,21 @@ class VDP_IMU:
 
         tSignal = self.getState()
         return tSignal
+
+
+# --------------------------------------------------------------------------------
+#  Test
+# --------------------------------------------------------------------------------
+
+# if __name__ == "__main__":
+#     imu = VDP_IMU()
+#     imu.init()
+#     while True:
+#         state = imu.getState()
+#         if state == -1:
+#             print("LEFT")
+#         elif state == 1:
+#             print("RIGHT")
+#         else:
+#             print("CENTER")
+#         time.sleep(0.05)

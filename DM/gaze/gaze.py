@@ -1,7 +1,7 @@
 import cv2
 import time
-import app.package.gazeDetection as gaze
-import app.package.faceAngle as faceAngle
+from .package import gazeDetection as gaze
+from .package import faceAngle as faceAngle
 
 # 시선 추적 알고리즘 흐름도 
 # 1. 프레임 읽고
@@ -29,10 +29,10 @@ def camera_init(video_path) :
 
 
 # --------------------------------------------------------------------------------
-#  APP Run
+#  Gaze Run
 # --------------------------------------------------------------------------------
 
-def app_Run(VIDEO_PATH, HEF_PATH, LABEL_PATH, queue):
+def gaze_Run(VIDEO_PATH, HEF_PATH, LABEL_PATH, queue):
     global LEFT, FRONT, RIGHT
     
     faceAngle.init()
@@ -48,7 +48,7 @@ def app_Run(VIDEO_PATH, HEF_PATH, LABEL_PATH, queue):
         if not queue.empty() :
             msg = queue.get()
             if msg == "EXIT":
-                print("[APP] exit signal received")
+                print("[GAZE] exit signal received")
                 break
         ret, frame = cap.read()
 
@@ -90,4 +90,4 @@ def app_Run(VIDEO_PATH, HEF_PATH, LABEL_PATH, queue):
 
 
 if __name__ == "__main__":
-    app_Run()
+    gaze_Run()

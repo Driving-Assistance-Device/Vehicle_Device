@@ -2,8 +2,8 @@ import cv2
 import numpy as np
 import queue
 import threading
-from utils import HailoAsyncInference
-from object_detection_utils import ObjectDetectionUtils
+from lib.utils import HailoAsyncInference
+from lib.object_detection_utils import ObjectDetectionUtils
 
 _inference_initialized = False
 _input_queue = queue.Queue()
@@ -86,7 +86,7 @@ def detect_gaze(hef_path, frame, label_path = 'coco.txt'):
 
 # 07.31 추가 
 def analyze_gaze_direction(detections: dict) -> str:
-    """
+    '''
     Analyze gaze direction based on eye and pupil detection results.
 
     Args:
@@ -98,7 +98,7 @@ def analyze_gaze_direction(detections: dict) -> str:
 
     Returns:
         str: 'left', 'front', 'right', or 'unknown'
-    """
+    '''
     eye_box = None
     pupil_box = None
 

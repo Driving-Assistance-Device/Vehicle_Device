@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-import gData as g
+from lib import gData as g
 
 
 
@@ -407,3 +407,19 @@ def ldOffset( frame ):
 
     return mask
 
+
+
+# --------------------------------------------------------------------------------
+#  Test
+# --------------------------------------------------------------------------------
+
+# if __name__ == "__main__":
+#     frame = cv2.imread( "img/test_img_0.jpg" )
+#     detFrame, hLine = ldRun( frame )
+#     ldOffsetFrame = ldOffset( detFrame ) 
+#     output_frame = cv2.addWeighted( detFrame, 1, ldOffsetFrame, 0.5, 0 )
+
+#     cv2.imshow("Final Output", output_frame)
+
+#     cv2.waitKey(0)
+#     cv2.destroyAllWindows()

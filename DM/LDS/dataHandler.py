@@ -1,4 +1,4 @@
-import gData as g
+from lib import gData as g
 
 
 

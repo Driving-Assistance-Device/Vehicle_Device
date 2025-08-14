@@ -3,7 +3,7 @@ import numpy as np
 
 
 def generate_color(class_id: int) -> tuple:
-    """
+    '''
     Generate a unique color for a given class ID.
 
     Args:
@@ -11,27 +11,27 @@ def generate_color(class_id: int) -> tuple:
 
     Returns:
         tuple: A tuple representing an RGB color.
-    """
+    '''
     np.random.seed(class_id)
     return tuple(np.random.randint(0, 255, size=3).tolist())
 
 
 class ObjectDetectionUtils:
     def __init__(self, labels_path: str, padding_color: tuple = (114, 114, 114), label_font: str = "LiberationSans-Regular.ttf"):
-        """
+        '''
         Initialize the ObjectDetectionUtils class.
 
         Args:
             labels_path (str): Path to the labels file.
             padding_color (tuple): RGB color for padding. Defaults to (114, 114, 114).
             label_font (str): Path to the font used for labeling. Defaults to "LiberationSans-Regular.ttf".
-        """
+        '''
         self.labels = self.get_labels(labels_path)
         self.padding_color = padding_color
         self.label_font = label_font
     
     def get_labels(self, labels_path: str) -> list:
-        """
+        '''
         Load labels from a file.
 
         Args:
@@ -39,13 +39,13 @@ class ObjectDetectionUtils:
 
         Returns:
             list: List of class names.
-        """
+        '''
         with open(labels_path, 'r', encoding="utf-8") as f:
             class_names = f.read().splitlines()
         return class_names
 
     def preprocess(self, image: np.ndarray, model_w: int, model_h: int) -> np.ndarray:
-        """
+        '''
         Resize image with unchanged aspect ratio using padding.
 
         Args:
@@ -55,7 +55,7 @@ class ObjectDetectionUtils:
 
         Returns:
             np.ndarray: Preprocessed and padded image.
-        """
+        '''
         img_h, img_w, _ = image.shape[:3]
         scale = min(model_w / img_w, model_h / img_h)
         new_img_w, new_img_h = int(img_w * scale), int(img_h * scale)
@@ -68,7 +68,7 @@ class ObjectDetectionUtils:
         return padded_image
 
     def draw_detection(self, image: np.ndarray, box: list, cls: int, score: float, color: tuple, scale_factor: float):
-        """
+        '''
         Draw box and label for one detection.
 
         Args:
@@ -78,7 +78,7 @@ class ObjectDetectionUtils:
             score (float): Detection score.
             color (tuple): Color for the bounding box.
             scale_factor (float): Scale factor for coordinates.
-        """
+        '''
         label = f"{self.labels[cls]}: {score:.2f}%"
         ymin, xmin, ymax, xmax = box
         ymin, xmin, ymax, xmax = int(ymin * scale_factor), int(xmin * scale_factor), int(ymax * scale_factor), int(xmax * scale_factor)
@@ -87,7 +87,7 @@ class ObjectDetectionUtils:
         cv2.putText(image, label, (xmin + 4, ymin + 20), font, 0.5, color, 1, cv2.LINE_AA)
 
     def denormalize_and_rm_pad(self, box: list, size: int, padding_length: int, input_height: int, input_width: int) -> list:
-        """
+        '''
         Denormalize bounding box coordinates and remove padding.
 
         Args:
@@ -99,7 +99,7 @@ class ObjectDetectionUtils:
 
         Returns:
             list: Denormalized bounding box coordinates with padding removed.
-        """
+        '''
         for i, x in enumerate(box):
             box[i] = int(x * size)
             if (input_width != size) and (i % 2 != 0):
@@ -110,7 +110,7 @@ class ObjectDetectionUtils:
         return box
 
     def draw_detections(self, detections: dict, image: np.ndarray, min_score: float = 0.45, scale_factor: float = 1):
-        """
+        '''
         Draw detections on the image.
 
         Args:
@@ -121,7 +121,7 @@ class ObjectDetectionUtils:
 
         Returns:
             np.ndarray: Image with detections drawn.
-        """
+        '''
         boxes = detections['detection_boxes']
         classes = detections['detection_classes']
         scores = detections['detection_scores']
@@ -140,7 +140,7 @@ class ObjectDetectionUtils:
         return image
         
     def extract_detections(self, input_data: list, threshold: float = 0.5) -> dict:
-        """
+        '''
         Extract detections from the input data.
 
         Args:
@@ -149,7 +149,7 @@ class ObjectDetectionUtils:
 
         Returns:
             dict: Filtered detection results containing 'detection_boxes', 'detection_classes', 'detection_scores', and 'num_detections'.
-        """
+        '''
         boxes, scores, classes = [], [], []
         num_detections = 0
 
@@ -172,3 +172,4 @@ class ObjectDetectionUtils:
             'detection_scores': scores,
             'num_detections': num_detections
         }
+

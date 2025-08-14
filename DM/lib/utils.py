@@ -15,7 +15,7 @@ class HailoAsyncInference:
         output_queue: queue.Queue, batch_size: int = 1,
         input_type: Optional[str] = None, output_type: Optional[Dict[str, str]] = None,
         send_original_frame: bool = False) -> None:
-        """
+        '''
         Initialize the HailoAsyncInference class with the provided HEF model 
         file path and input/output queues.
 
@@ -29,7 +29,7 @@ class HailoAsyncInference:
                                         Possible values: 'UINT8', 'UINT16'.
             output_type Optional[dict[str, str]] : Format type of the output stream. 
                                          Possible values: 'UINT8', 'UINT16', 'FLOAT32'.
-        """
+        '''
         self.input_queue = input_queue
         self.output_queue = output_queue
         params = VDevice.create_params()
@@ -51,23 +51,23 @@ class HailoAsyncInference:
         self.send_original_frame = send_original_frame
 
     def _set_input_type(self, input_type: Optional[str] = None) -> None:
-        """
+        '''
         Set the input type for the HEF model. If the model has multiple inputs,
         it will set the same type of all of them.
 
         Args:
             input_type (Optional[str]): Format type of the input stream.
-        """
+        '''
         self.infer_model.input().set_format_type(getattr(FormatType, input_type))
     
     def _set_output_type(self, output_type_dict: Optional[Dict[str, str]] = None) -> None:
-        """
+        '''
         Set the output type for the HEF model. If the model has multiple outputs,
         it will set the same type for all of them.
 
         Args:
             output_type_dict (Optional[dict[str, str]]): Format type of the output stream.
-        """
+        '''
         for output_name, output_type in output_type_dict.items():
             self.infer_model.output(output_name).set_format_type(
                 getattr(FormatType, output_type)
@@ -76,7 +76,7 @@ class HailoAsyncInference:
     def callback(
         self, completion_info, bindings_list: list, input_batch: list,
     ) -> None:
-        """
+        '''
         Callback function for handling inference results.
 
         Args:
@@ -85,7 +85,7 @@ class HailoAsyncInference:
             bindings_list (list): List of binding objects containing input 
                                   and output buffers.
             processed_batch (list): The processed batch of images.
-        """
+        '''
         if completion_info.exception:
             logger.error(f'Inference error: {completion_info.exception}')
         else:
@@ -105,34 +105,34 @@ class HailoAsyncInference:
 
     def get_vstream_info(self) -> Tuple[list, list]:
 
-        """
+        '''
         Get information about input and output stream layers.
 
         Returns:
             Tuple[list, list]: List of input stream layer information, List of 
                                output stream layer information.
-        """
+        '''
         return (
             self.hef.get_input_vstream_infos(), 
             self.hef.get_output_vstream_infos()
         )
 
     def get_hef(self) -> HEF:
-        """
+        '''
         Get the object's HEF file
         
         Returns:
             HEF: A HEF (Hailo Executable File) containing the model.
-        """
+        '''
         return self.hef
 
     def get_input_shape(self) -> Tuple[int, ...]:
-        """
+        '''
         Get the shape of the model's input layer.
 
         Returns:
             Tuple[int, ...]: Shape of the model's input layer.
-        """
+        '''
         return self.hef.get_input_vstream_infos()[0].shape  # Assumes one input
 
     def run(self) -> None:
@@ -170,7 +170,7 @@ class HailoAsyncInference:
             self.output_type[output_info.name].lower()
 
     def _create_bindings(self, configured_infer_model) -> object:
-        """
+        '''
         Create bindings for input and output buffers.
 
         Args:
@@ -178,7 +178,7 @@ class HailoAsyncInference:
 
         Returns:
             object: Bindings object with input and output buffers.
-        """
+        '''
         if self.output_type is None:
             output_buffers = {
                 output_info.name: np.empty(
@@ -201,7 +201,7 @@ class HailoAsyncInference:
 
 
 def load_images_opencv(images_path: str) -> List[np.ndarray]:
-    """
+    '''
     Load images from the specified path.
 
     Args:
@@ -209,7 +209,7 @@ def load_images_opencv(images_path: str) -> List[np.ndarray]:
 
     Returns:
         List[np.ndarray]: List of images as NumPy arrays.
-    """
+    '''
     import cv2
     path = Path(images_path)
     if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS:
@@ -222,7 +222,7 @@ def load_images_opencv(images_path: str) -> List[np.ndarray]:
     return []
 
 def load_input_images(images_path: str):
-    """
+    '''
     Load images from the specified path.
 
     Args:
@@ -230,7 +230,7 @@ def load_input_images(images_path: str):
 
     Returns:
         List[Image.Image]: List of PIL.Image.Image objects.
-    """
+    '''
     from PIL import Image
     path = Path(images_path)
     if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS:
@@ -243,7 +243,7 @@ def load_input_images(images_path: str):
     return []
 
 def validate_images(images: List[np.ndarray], batch_size: int) -> None:
-    """
+    '''
     Validate that images exist and are properly divisible by the batch size.
 
     Args:
@@ -252,7 +252,7 @@ def validate_images(images: List[np.ndarray], batch_size: int) -> None:
 
     Raises:
         ValueError: If images list is empty or not divisible by batch size.
-    """
+    '''
     if not images:
         raise ValueError(
             'No valid images found in the specified path.'
@@ -268,7 +268,7 @@ def validate_images(images: List[np.ndarray], batch_size: int) -> None:
 def divide_list_to_batches(
     images_list: List[np.ndarray], batch_size: int
 ) -> Generator[List[np.ndarray], None, None]:
-    """
+    '''
     Divide the list of images into batches.
 
     Args:
@@ -278,6 +278,72 @@ def divide_list_to_batches(
     Returns:
         Generator[List[np.ndarray], None, None]: Generator yielding batches 
                                                   of images.
-    """
+    '''
     for i in range(0, len(images_list), batch_size):
         yield images_list[i: i + batch_size]
+
+
+def get_frame_from_video(video_path: str) -> Generator[np.ndarray, None, None]:
+    '''
+    Get frames from a video file.
+
+    Args:
+        video_path (str): Path to the video file.
+
+    Returns:
+        Generator[np.ndarray, None, None]: Generator yielding frames from the 
+                                           video.
+    '''
+    import cv2
+    cap = cv2.VideoCapture(video_path)
+    while cap.isOpened():
+        success, frame = cap.read()
+        if not success:
+            break
+        yield frame
+    cap.release()
+
+
+def get_frame_from_camera(camera_index: int) -> Generator[np.ndarray, None, None]:
+    '''
+    Get frames from a camera.
+
+    Args:
+        camera_index (int): Index of the camera to use.
+
+    Returns:
+        Generator[np.ndarray, None, None]: Generator yielding frames from the 
+                                           camera.
+    '''
+    import cv2
+    cap = cv2.VideoCapture(camera_index)
+    while cap.isOpened():
+        success, frame = cap.read()
+        if not success:
+            break
+        yield frame
+    cap.release()
+    
+def get_frame_from_camera_by_size(camera_index: int, width: int, height: int) -> Generator[np.ndarray, None, None]:
+    '''
+    Get frames from a camera with a specific resolution.
+
+    Args:
+        camera_index (int): Index of the camera to use.
+        width (int): Width of the frame.
+        height (int): Height of the frame.
+
+    Returns:
+        Generator[np.ndarray, None, None]: Generator yielding frames from the 
+                                           camera.
+    '''
+    import cv2
+    cap = cv2.VideoCapture(camera_index)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    while cap.isOpened():
+        success, frame = cap.read()
+        if not success:
+            break
+        yield frame
+    cap.release()
