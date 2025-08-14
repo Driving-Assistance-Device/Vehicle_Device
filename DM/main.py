@@ -23,7 +23,7 @@ DEIVCE_CODE = "adasdafagfas1_Ada_dasgafsadas"
 DEIVCE_ID = None
 
 # --------------------------------------------------------------------------------
-#  APP
+#  APP LDS
 # --------------------------------------------------------------------------------
 APP_CAM_CH = 0
 
@@ -32,18 +32,12 @@ APP_HEF_PATH = './app/weight/gaze.hef'
 APP_LABEL_PATH = './app/weight/coco.txt'
 
 
-# --------------------------------------------------------------------------------
-#  LDS
-# --------------------------------------------------------------------------------
-
 LDS_MODE = 1      # 0:jpg, 1:mp4, 2:usb cam
-
 LDS_CAM_CH = 2
 
 LDS_VIDEO_PATH = 2#"./videos/2.mp4"
 LDS_HEF_PATH = "./LDS/yolov7.hef"
 LDS_LABEL_PATH = "./LDS/labals.txt"
-
 
 # --------------------------------------------------------------------------------
 #  socket
@@ -60,17 +54,17 @@ gps_milg_lock = threading.Lock()
 async def init_device():
     global DEIVCE_ID
     websocket = await connect_until_success(URL)
-    msg = {
-        "type": "DEVICE:HELLO",
-        "payload": {
-            "code": DEIVCE_CODE
-        }
+    msg_init = {
+    "type": "DEVICE:HELLO",
+    "payload": {
+        "code": DEIVCE_CODE
     }
-    response = await send_msg(websocket, msg)
+}
+    response = await send_msg(websocket, msg_init)
     if response in ("RECONNECT", "TIMEOUT", None):
         # 한번 더 시도
         websocket = await connect_until_success(URL)
-        response = await send_msg(websocket, msg)
+        response = await send_msg(websocket, msg_init)
 
     data = json.loads(response)
     DEIVCE_ID = data["data"]["deviceId"]
@@ -160,29 +154,29 @@ async def thread_check_state(websocket, stop_event: asyncio.Event):
             await asyncio.sleep(1)
             continue
 
-        test = (
+        status = (
             status.get("data", {}).get("status")
             if isinstance(status, dict) else None
         )
 
-        if test is None:
+        if status is None:
             print("[WARN] status missing in response:", status)
             await asyncio.sleep(1)
             continue
 
-        if test == 0:
+        if status == 0:
             DEVICE_STATE = 0
             print("DEVICE_STATE : 0")
             GPIO.toggle_LED(GPIO.RED_LED, 1)
             GPIO.toggle_LED(GPIO.YELLOW_LED, 0)
             GPIO.toggle_LED(GPIO.BLUE_LED, 0)
-        elif test == 1:
+        elif status == 1:
             DEVICE_STATE = 1
             print("DEVICE_STATE : 1")
             GPIO.toggle_LED(GPIO.RED_LED, 0)
             GPIO.toggle_LED(GPIO.YELLOW_LED, 1)
             GPIO.toggle_LED(GPIO.BLUE_LED, 0)
-        elif test == 2:
+        elif status == 2:
             DEVICE_STATE = 2
             print("DEVICE_STATE : 2")
             GPIO.toggle_LED(GPIO.RED_LED, 0)
@@ -380,10 +374,10 @@ async def main():
             proc_APP, proc_LDS, gps_thread, imu_thread = init_thread_multiprocess(
                 gps, imu, VDP_data, app_queue, lds_queue, websocket
             )
-            print("[INFO] DEVICE_STATE OFF")
 
         elif DEVICE_STATE == 2 and flag == 1:
             flag = 0
+            print("[INFO] DEVICE_STATE OFF")
             exit_thread_multiprocess(
                 app_queue, lds_queue, proc_APP, proc_LDS, gps_thread, imu_thread)
 

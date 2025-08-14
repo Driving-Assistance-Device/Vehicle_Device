@@ -1,14 +1,7 @@
 import cv2
-import numpy as np
-import mediapipe
 import time
 import app.package.gazeDetection as gaze
 import app.package.faceAngle as faceAngle
-
-
-exit_flag = False
-
-
 
 # 시선 추적 알고리즘 흐름도 
 # 1. 프레임 읽고
@@ -40,7 +33,7 @@ def camera_init(video_path) :
 # --------------------------------------------------------------------------------
 
 def app_Run(VIDEO_PATH, HEF_PATH, LABEL_PATH, queue):
-    global exit_flag, LEFT, FRONT, RIGHT
+    global LEFT, FRONT, RIGHT
     
     faceAngle.init()
 
@@ -79,8 +72,8 @@ def app_Run(VIDEO_PATH, HEF_PATH, LABEL_PATH, queue):
             RIGHT += 1
 
         # 시선
-        cv2.imshow("Gaze Detection", cv2.resize(out_frame, (0, 0), fx=0.3, fy=0.3))
-        # cv2.imshow("Gaze Detection", out_frame)
+        # cv2.imshow("Gaze Detection", cv2.resize(out_frame, (0, 0), fx=0.3, fy=0.3))
+        cv2.imshow("Gaze Detection", out_frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
         # time.sleep(0.05)
