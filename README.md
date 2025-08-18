@@ -27,7 +27,7 @@
 
 
 # System Overview
-<img width="747" height="305" alt="Image" src="https://github.com/user-attachments/assets/e801dcb8-b9e7-4b6f-a118-64af0e3e18f0" />
+<img width="2547" height="1212" alt="Image" src="https://github.com/user-attachments/assets/881b3391-7c48-4911-bc41-1c6551bb9cd7" />
 
 - **MultiProcessor**
     - To enhance system efficiency and prevent resource bottlenecks, the application uses multiprocessing. Independent processes are assigned to handle gaze tracking (app.py) and lane detection with distance estimation (lds.py), enabling parallel execution of compute-intensive tasks.
@@ -50,3 +50,7 @@
 
 
 # Feature
+<img width="1041" height="293" alt="image" src="https://github.com/user-attachments/assets/8cc2fa3f-8bd0-42fc-9b7c-82005e5e14eb" />
+
+
+
