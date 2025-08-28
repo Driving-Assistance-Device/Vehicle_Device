@@ -35,7 +35,7 @@
 - **MultiThread**
     - Multithreading is used for handling GPS and IMU data concurrently. GPS data is used to measure driving distance and speed, while IMU data helps determine the vehicle’s turn signal status (e.g., left or right turn). This approach improves responsiveness and stability of the system.
 
-- **Communication (WebScoket)**
+- **WebScoket**
   - the device and server are connected via a TCP-based websocket communication protocol.
 
 - **Hailo NPU**
@@ -49,8 +49,13 @@
 - [HUD](https://github.com/Driving-Assistance-Device/HUD)
 
 
-# Feature
-<img width="1041" height="293" alt="image" src="https://github.com/user-attachments/assets/8cc2fa3f-8bd0-42fc-9b7c-82005e5e14eb" />
+# multi-proess
+<img width="800" alt="image" src="https://github.com/user-attachments/assets/8cc2fa3f-8bd0-42fc-9b7c-82005e5e14eb" />
+
+[main.py](https://github.com/Driving-Assistance-Device/Vehicle_Device/tree/main/DM)  
+[lds.py](https://github.com/Driving-Assistance-Device/Vehicle_Device/tree/main/DM/LDS)  
+[gaze.py](https://github.com/Driving-Assistance-Device/Vehicle_Device/tree/main/DM/gaze)  
+
 
 
 
