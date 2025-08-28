@@ -10,7 +10,7 @@
 - **GPU** : NVIDIA RTX 4050
 - **RAM** : 32GB
 - **OS** : Ubuntu-22.04 LTS (WSL2)
-- **Target** Hailo NPU : Hailo8  
+- **Target Hailo NPU** : Hailo8  
 
 ### Hailo SDK
 - **Hailo Model Zoo** : 2.15v
@@ -62,5 +62,6 @@
     - Lane & inter-vehicle distance detection system
 - [gaze.py](https://github.com/Driving-Assistance-Device/Vehicle_Device/tree/main/DM/gaze)  
     - Gaze detection system
+
 
 
